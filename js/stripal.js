@@ -103,14 +103,6 @@
         store = gg.extend(store, opts, false);
         item = {
             stripal_item: true,
-            update: function () {
-                if (store.quantity < 0) {
-                    store.quantity = 0;
-                }
-                if (store.discount < 0) {
-                    store.discount = 0;
-                }
-            },
             id: function () {
                 return store.id;
             },
@@ -124,6 +116,9 @@
                 if (!gg.isNaN(price)) {
                     store.price = gg.toInt(price);
                 }
+                if (store.price < 0) {
+                    store.price = 0;
+                }
                 return store.price;
             },
             currency: function (currency) {
@@ -136,11 +131,17 @@
                 if (!gg.isNaN(quantity)) {
                     store.quantity = gg.toInt(quantity);
                 }
+                if (store.quantity < 0) {
+                    store.quantity = 0;
+                }
                 return store.quantity;
             },
             step: function (step) {
                 if (!gg.isNaN(step)) {
                     store.step = gg.toInt(step) === 0 ? 1 : gg.toInt(step);
+                }
+                if (store.step < 1) {
+                    store.step = 1;
                 }
                 return store.step;
             },
@@ -148,17 +149,23 @@
                 if (!gg.isNaN(discount)) {
                     store.discount = gg.toInt(discount);
                 }
-                item.update();
+                if (store.discount < 0) {
+                    store.discount = 0;
+                }
                 return store.discount;
             },
             increment: function (inc) {
                 store.quantity += inc === undefined ? store.step : gg.toInt(inc);
-                item.update();
+                if (store.quantity < 0) {
+                    store.quantity = 0;
+                }
                 return store.quantity;
             },
             decrement: function (dec) {
                 store.quantity -= dec === undefined ? store.step : gg.toInt(dec);
-                item.update();
+                if (store.quantity < 0) {
+                    store.quantity = 0;
+                }
                 return store.quantity;
             },
             total: function () {
