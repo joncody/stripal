@@ -57,7 +57,7 @@
 //     discount: number, (amount to subtract from price)
 //     any: any, (any additional properties that are not functions are stored as well)
 // };
-    stripal.newItem = function (name, opts) {
+    stripal.newItem = (function () {
         var restricted = [
             "constructor",
             "prototype",
@@ -79,128 +79,151 @@
             "get",
             "object"
         ];
-        var store = {};
-        var item;
 
-        if (!gg.isString(name) || name === "") {
-            throw "first argument must be a non-empty string";
-        }
-        if (!gg.isObject(opts)) {
-            opts = {};
-        }
-        store.id = itemId();
-        store.name = name;
-        store.price = gg.toInt(opts.price);
-        store.currency = gg.isString(opts.currency) ? opts.currency : cart.currency;
-        store.quantity = gg.toInt(opts.quantity);
-        store.step = gg.toInt(opts.step) === 0 ? 1 : gg.toInt(opts.step);
-        store.discount = gg.toInt(opts.discount);
-        Object.keys(opts).forEach(function (key) {
-            if (gg.isFunction(opts[key])) {
-                delete opts[key];
+        function stripMethods(value) {
+            var i;
+
+            if (gg.isObject(value)) {
+                Object.keys(value).forEach(function (key) {
+                    if (gg.isFunction(value[key])) {
+                        delete value[key];
+                    } else if (gg.isObject(value[key]) || gg.isArray(value[key])) {
+                        stripMethods(value[key]);
+                    }
+                });
+            } else if (gg.isArray(value)) {
+                i = value.length - 1;
+                while (i >= 0) {
+                    if (gg.isFunction(value[i])) {
+                        value.splice(i, 1);
+                    } else if (gg.isObject(value[i]) || gg.isArray(value[i])) {
+                        stripMethods(value[i]);
+                    }
+                    i -= 1;
+                }
             }
-        });
-        store = gg.extend(store, opts, false);
-        item = {
-            stripal_item: true,
-            id: function () {
-                return store.id;
-            },
-            name: function (name) {
-                if (gg.isString(name) && name !== "") {
-                    store.name = name;
+        }
+
+        function sanityCheck(store) {
+            var props = [
+                "price",
+                "quantity",
+                "step",
+                "discount"
+            ];
+
+            props.forEach(function (prop) {
+                var int = gg.toInt(store[prop]);
+
+                if (prop === "step" ? int < 1 : int < 0) {
+                    store[prop] = prop === "step" ? 1 : 0;
                 }
-                return store.name;
-            },
-            price: function (price) {
-                if (!gg.isNaN(price)) {
-                    store.price = gg.toInt(price);
-                }
-                if (store.price < 0) {
-                    store.price = 0;
-                }
-                return store.price;
-            },
-            currency: function (currency) {
-                if (gg.isString(currency) && currency !== "") {
-                    store.currency = currency.toUpperCase();
-                }
-                return store.currency;
-            },
-            quantity: function (quantity) {
-                if (!gg.isNaN(quantity)) {
-                    store.quantity = gg.toInt(quantity);
-                }
-                if (store.quantity < 0) {
-                    store.quantity = 0;
-                }
-                return store.quantity;
-            },
-            step: function (step) {
-                if (!gg.isNaN(step)) {
-                    store.step = gg.toInt(step) === 0 ? 1 : gg.toInt(step);
-                }
-                if (store.step < 1) {
-                    store.step = 1;
-                }
-                return store.step;
-            },
-            discount: function (discount) {
-                if (!gg.isNaN(discount)) {
-                    store.discount = gg.toInt(discount);
-                }
-                if (store.discount < 0) {
-                    store.discount = 0;
-                }
-                return store.discount;
-            },
-            increment: function (inc) {
-                store.quantity += inc === undefined ? store.step : gg.toInt(inc);
-                if (store.quantity < 0) {
-                    store.quantity = 0;
-                }
-                return store.quantity;
-            },
-            decrement: function (dec) {
-                store.quantity -= dec === undefined ? store.step : gg.toInt(dec);
-                if (store.quantity < 0) {
-                    store.quantity = 0;
-                }
-                return store.quantity;
-            },
-            total: function () {
-                return gg.toInt(store.quantity * store.price - store.discount);
-            },
-            add: function () {
-                if (!cart.items.hasOwnProperty(store.id)) {
-                    cart.items[store.id] = item;
-                    stripal.emit("add", item);
-                }
-            },
-            remove: function () {
-                if (cart.items.hasOwnProperty(store.id)) {
-                    delete cart.items[store.id];
-                    stripal.emit("remove", item);
-                }
-            },
-            set: function (key, value) {
-                if (!gg.isString(key) || key === "" || restricted.indexOf(key) !== -1 || gg.isFunction(value)) {
-                    return;
-                }
-                store[key] = value;
-            },
-            get: function (key) {
-                if (!gg.isString(key) || key === "" || restricted.indexOf(key) !== -1) {
-                    return;
-                }
-                return store[key];
-            },
-            object: function () {
-                return gg.copy(store);
+            });
+        }
+
+        return function (opts) {
+            var store = {};
+            var item;
+
+            if (!gg.isObject(opts)) {
+                opts = {};
             }
+            stripMethods(opts);
+            store = gg.extend(store, opts, true);
+            sanityCheck(store);
+            item = {
+                stripal_item: true,
+                id: function () {
+                    return store.id;
+                },
+                name: function (name) {
+                    if (gg.isString(name) && name !== "") {
+                        store.name = name;
+                    }
+                    return store.name;
+                },
+                price: function (price) {
+                    if (gg.toInt(price) >= 0) {
+                        store.price = gg.toInt(price);
+                    }
+                    return store.price;
+                },
+                currency: function (currency) {
+                    if (gg.isString(currency) && currency !== "") {
+                        store.currency = currency.toUpperCase();
+                    }
+                    return store.currency;
+                },
+                quantity: function (quantity) {
+                    if (gg.toInt(quantity) >= 0) {
+                        store.quantity = gg.toInt(quantity);
+                    }
+                    return store.quantity;
+                },
+                step: function (step) {
+                    if (gg.toInt(step) >= 1) {
+                        store.step = gg.toInt(step);
+                    }
+                    return store.step;
+                },
+                discount: function (discount) {
+                    if (gg.toInt(discount) >= 0) {
+                        store.discount = gg.toInt(discount);
+                    }
+                    return store.discount;
+                },
+                increment: function (inc) {
+                    if (inc === undefined) {
+                        store.quantity += store.step;
+                    } else if (gg.toInt(inc) >= 0) {
+                        store.quantity += gg.toInt(inc);
+                    }
+                    return store.quantity;
+                },
+                decrement: function (dec) {
+                    if (dec === undefined) {
+                        store.quantity = store.quantity - store.step < 0 ? 0 : store.quantity - store.step;
+                    }
+                    if (gg.toInt(dec) >= 0) {
+                        store.quantity = store.quantity - gg.toInt(dec) < 0 ? 0 : store.quantity - gg.toInt(dec);
+                    }
+                    return store.quantity;
+                },
+                total: function () {
+                    return gg.toInt(store.quantity * store.price - store.discount);
+                },
+                add: function () {
+                    if (!cart.items.hasOwnProperty(store.id)) {
+                        cart.items[store.id] = item;
+                        stripal.emit("add", item);
+                    }
+                },
+                remove: function () {
+                    if (cart.items.hasOwnProperty(store.id)) {
+                        delete cart.items[store.id];
+                        stripal.emit("remove", item);
+                    }
+                },
+                set: function (key, value) {
+                    if (!gg.isString(key) || key === "" || restricted.indexOf(key.trim()) !== -1 || gg.isFunction(value)) {
+                        return;
+                    }
+                    stripMethods(value);
+                    store[key.trim()] = value;
+                },
+                get: function (key) {
+                    if (!gg.isString(key) || key === "" || restricted.indexOf(key.trim()) !== -1) {
+                        return;
+                    }
+                    return store[key.trim()];
+                },
+                object: function () {
+                    return gg.copy(store);
+                }
+            };
+            return Object.freeze(item);
         };
-        return Object.freeze(item);
-    };
+    }());
 
     stripal.stripeKey = function (key) {
         if (gg.isString(key) && key !== "") {
