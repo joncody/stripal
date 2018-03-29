@@ -1736,7 +1736,6 @@
             "constructor",
             "prototype",
             "stripal_item",
-            "update",
             "id",
             "name",
             "price",
@@ -1813,36 +1812,42 @@
                 name: function (name) {
                     if (gg.isString(name) && name !== "") {
                         store.name = name;
+                        stripal.emit("update", item, "name", name);
                     }
                     return store.name;
                 },
                 price: function (price) {
                     if (!gg.isNaN(price) && gg.toInt(price) >= 0) {
                         store.price = gg.toInt(price);
+                        stripal.emit("update", item, "price", price);
                     }
                     return store.price;
                 },
                 currency: function (currency) {
                     if (gg.isString(currency) && currency !== "") {
                         store.currency = currency.toUpperCase();
+                        stripal.emit("update", item, "currency", currency);
                     }
                     return store.currency;
                 },
                 quantity: function (quantity) {
                     if (!gg.isNaN(quantity) && gg.toInt(quantity) >= 0) {
                         store.quantity = gg.toInt(quantity);
+                        stripal.emit("update", item, "quantity", quantity);
                     }
                     return store.quantity;
                 },
                 step: function (step) {
                     if (!gg.isNaN(step) && gg.toInt(step) >= 1) {
                         store.step = gg.toInt(step);
+                        stripal.emit("update", item, "step", step);
                     }
                     return store.step;
                 },
                 discount: function (discount) {
                     if (!gg.isNaN(discount) && gg.toInt(discount) >= 0) {
                         store.discount = gg.toInt(discount);
+                        stripal.emit("update", item, "discount", discount);
                     }
                     return store.discount;
                 },
@@ -1852,6 +1857,7 @@
                     } else if (gg.toInt(inc) >= 0) {
                         store.quantity += gg.toInt(inc);
                     }
+                    stripal.emit("update", item, "quantity", quantity);
                     return store.quantity;
                 },
                 decrement: function (dec) {
@@ -1860,6 +1866,7 @@
                     } else if (gg.toInt(dec) >= 0) {
                         store.quantity = store.quantity - gg.toInt(dec) < 0 ? 0 : store.quantity - gg.toInt(dec);
                     }
+                    stripal.emit("update", item, "quantity", quantity);
                     return store.quantity;
                 },
                 total: function () {
@@ -1883,6 +1890,7 @@
                     }
                     stripMethods(value);
                     store[key.trim()] = value;
+                    stripal.emit("update", item, key.trim(), value);
                 },
                 get: function (key) {
                     if (!gg.isString(key) || key === "" || restricted.indexOf(key.trim()) !== -1) {
