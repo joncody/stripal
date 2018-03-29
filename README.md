@@ -3,7 +3,7 @@ stripal
 
 A simple, elegant shopping cart with either a Stripe or Paypal checkout.
 
-#API
+# API
 ## stripal
 - stripal.each(_function_)
 - stripal.newItem(_object_)
