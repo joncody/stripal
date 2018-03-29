@@ -14,6 +14,10 @@ A simple, elegant shopping cart with either a Stripe or Paypal checkout.
 - stripal.subtotal()
 - stripal.total()
 - stripal.checkout(_string_[, _object_])
+#### events
+- "add"
+- "remove"
+- "update"
 
 ## item
 - item.name([_string_])
