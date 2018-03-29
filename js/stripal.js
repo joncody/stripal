@@ -143,7 +143,7 @@
                     return store.name;
                 },
                 price: function (price) {
-                    if (gg.toInt(price) >= 0) {
+                    if (!gg.isNaN(price) && gg.toInt(price) >= 0) {
                         store.price = gg.toInt(price);
                     }
                     return store.price;
@@ -155,25 +155,25 @@
                     return store.currency;
                 },
                 quantity: function (quantity) {
-                    if (gg.toInt(quantity) >= 0) {
+                    if (!gg.isNaN(quantity) && gg.toInt(quantity) >= 0) {
                         store.quantity = gg.toInt(quantity);
                     }
                     return store.quantity;
                 },
                 step: function (step) {
-                    if (gg.toInt(step) >= 1) {
+                    if (!gg.isNaN(step) && gg.toInt(step) >= 1) {
                         store.step = gg.toInt(step);
                     }
                     return store.step;
                 },
                 discount: function (discount) {
-                    if (gg.toInt(discount) >= 0) {
+                    if (!gg.isNaN(discount) && gg.toInt(discount) >= 0) {
                         store.discount = gg.toInt(discount);
                     }
                     return store.discount;
                 },
                 increment: function (inc) {
-                    if (inc === undefined) {
+                    if (gg.isNaN(inc)) {
                         store.quantity += store.step;
                     } else if (gg.toInt(inc) >= 0) {
                         store.quantity += gg.toInt(inc);
@@ -181,10 +181,9 @@
                     return store.quantity;
                 },
                 decrement: function (dec) {
-                    if (dec === undefined) {
+                    if (gg.isNaN(dec)) {
                         store.quantity = store.quantity - store.step < 0 ? 0 : store.quantity - store.step;
-                    }
-                    if (gg.toInt(dec) >= 0) {
+                    } else if (gg.toInt(dec) >= 0) {
                         store.quantity = store.quantity - gg.toInt(dec) < 0 ? 0 : store.quantity - gg.toInt(dec);
                     }
                     return store.quantity;
@@ -383,7 +382,7 @@
 
                     p.payment.transactions[0].item_list.items.push({
                         name: o.name,
-                        description: o.description || o.paypal_description,
+                        description: o.description || o.paypal_description || "",
                         quantity: o.quantity,
                         price: gg.toFloat(o.price / 100, 2),
                         currency: o.currency
