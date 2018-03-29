@@ -114,7 +114,7 @@
             props.forEach(function (prop) {
                 var int = gg.toInt(store[prop]);
 
-                if (prop === "step" ? int < 1 : int < 0) {
+                if (prop === "step" ? int <= 1 : int <= 0) {
                     store[prop] = prop === "step" ? 1 : 0;
                 }
             });
