@@ -15,9 +15,9 @@ A simple, elegant shopping cart with either a Stripe or Paypal checkout.
 - stripal.total()
 - stripal.checkout(_string_[, _object_])
 #### events
-- "add"
-- "remove"
-- "update"
+- stripal.on("add", function (item) {});
+- stripal.on("remove", function (item) {});
+- stripal.on("update", function (item, "attribute", value) {});
 
 ## item
 - item.name([_string_])
