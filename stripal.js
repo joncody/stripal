@@ -1739,14 +1739,17 @@
             "id",
             "name",
             "price",
+            "add",
+            "subtract",
             "currency",
+            "minimum",
             "quantity",
             "step",
             "discount",
             "increment",
             "decrement",
             "total",
-            "add",
+            "cart",
             "remove",
             "set",
             "get",
@@ -1780,6 +1783,7 @@
         function sanityCheck(store) {
             var props = [
                 "price",
+                "minimum",
                 "quantity",
                 "step",
                 "discount"
@@ -1788,8 +1792,8 @@
             props.forEach(function (prop) {
                 var int = gg.toInt(store[prop]);
 
-                if (prop === "step" ? int <= 1 : int <= 0) {
-                    store[prop] = prop === "step" ? 1 : 0;
+                if (prop === "step" || prop === "quantity" || prop === "minimum" ? int < 1 : int <= 0) {
+                    store[prop] = prop === "step" || prop === "quantity" || prop === "minimum" ? 1 : 0;
                 }
             });
         }
@@ -1812,70 +1816,91 @@
                 name: function (name) {
                     if (gg.isString(name) && name !== "") {
                         store.name = name;
-                        stripal.emit("update", item, "name", name);
+                        stripal.emit("update", item, "name", store.name);
                     }
                     return store.name;
                 },
                 price: function (price) {
                     if (!gg.isNaN(price) && gg.toInt(price) >= 0) {
                         store.price = gg.toInt(price);
-                        stripal.emit("update", item, "price", price);
+                        stripal.emit("update", item, "price", store.price);
+                    }
+                    return store.price;
+                },
+                add: function (price) {
+                    if (!gg.isNaN(price) && gg.toInt(price) >= 0) {
+                        store.price = store.price + gg.toInt(price) < 0 ? 0 : store.price + gg.toInt(price);
+                        stripal.emit("update", item, "price", store.price);
+                    }
+                    return store.price;
+                },
+                subtract: function (price) {
+                    if (!gg.isNaN(price) && gg.toInt(price) >= 0) {
+                        store.price = store.price - gg.toInt(price) < 0 ? 0 : store.price - gg.toInt(price);
+                        stripal.emit("update", item, "price", store.price);
                     }
                     return store.price;
                 },
                 currency: function (currency) {
                     if (gg.isString(currency) && currency !== "") {
                         store.currency = currency.toUpperCase();
-                        stripal.emit("update", item, "currency", currency);
+                        stripal.emit("update", item, "currency", store.currency);
                     }
                     return store.currency;
                 },
+                minimum: function (minimum) {
+                    if (!gg.isNaN(minimum) && gg.toInt(minimum) >= 1) {
+                        store.minimum = gg.toInt(minimum);
+                        stripal.emit("update", item, "minimum", store.minimum);
+                    }
+                    return store.minimum;
+                },
                 quantity: function (quantity) {
-                    if (!gg.isNaN(quantity) && gg.toInt(quantity) >= 0) {
+                    if (!gg.isNaN(quantity) && gg.toInt(quantity) >= store.minimum) {
                         store.quantity = gg.toInt(quantity);
-                        stripal.emit("update", item, "quantity", quantity);
+                        stripal.emit("update", item, "quantity", store.quantity);
                     }
                     return store.quantity;
                 },
                 step: function (step) {
                     if (!gg.isNaN(step) && gg.toInt(step) >= 1) {
                         store.step = gg.toInt(step);
-                        stripal.emit("update", item, "step", step);
+                        stripal.emit("update", item, "step", store.step);
                     }
                     return store.step;
                 },
                 discount: function (discount) {
                     if (!gg.isNaN(discount) && gg.toInt(discount) >= 0) {
                         store.discount = gg.toInt(discount);
-                        stripal.emit("update", item, "discount", discount);
+                        stripal.emit("update", item, "discount", store.discount);
                     }
                     return store.discount;
                 },
                 increment: function (inc) {
                     if (gg.isNaN(inc)) {
-                        store.quantity += store.step;
+                        store.quantity = store.quantity + store.step < store.minimum ? store.minimum : store.quantity + store.step;
                     } else if (gg.toInt(inc) >= 0) {
-                        store.quantity += gg.toInt(inc);
+                        store.quantity = store.quantity + gg.toInt(inc) < store.minimum ? store.minimum : store.quantity + gg.toInt(inc);
                     }
-                    stripal.emit("update", item, "quantity", quantity);
+                    stripal.emit("update", item, "quantity", store.quantity);
                     return store.quantity;
                 },
                 decrement: function (dec) {
                     if (gg.isNaN(dec)) {
-                        store.quantity = store.quantity - store.step < 0 ? 0 : store.quantity - store.step;
+                        store.quantity = store.quantity - store.step < store.minimum ? store.minimum : store.quantity - store.step;
                     } else if (gg.toInt(dec) >= 0) {
-                        store.quantity = store.quantity - gg.toInt(dec) < 0 ? 0 : store.quantity - gg.toInt(dec);
+                        store.quantity = store.quantity - gg.toInt(dec) < store.minimum ? store.minimum : store.quantity - gg.toInt(dec);
                     }
-                    stripal.emit("update", item, "quantity", quantity);
+                    stripal.emit("update", item, "quantity", store.quantity);
                     return store.quantity;
                 },
                 total: function () {
                     return gg.toInt(store.quantity * store.price - store.discount);
                 },
-                add: function () {
+                cart: function () {
                     if (!cart.items.hasOwnProperty(store.id)) {
                         cart.items[store.id] = item;
-                        stripal.emit("add", item);
+                        stripal.emit("cart", item);
                     }
                 },
                 remove: function () {
