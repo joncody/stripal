@@ -44,9 +44,13 @@
             Object.keys(cart.items).forEach(function (id, i) {
                 var item = cart.items[id];
 
-                fn(item, i, cart.items);
+                fn(item, i);
             });
         }
+    };
+
+    stripal.items = function () {
+        return gg.copy(cart.items);
     };
 
 // opts = {
@@ -118,8 +122,8 @@
             props.forEach(function (prop) {
                 var int = gg.toInt(store[prop]);
 
-                if (prop === "step" || prop === "quantity" || prop === "minimum" ? int < 1 : int <= 0) {
-                    store[prop] = prop === "step" || prop === "quantity" || prop === "minimum" ? 1 : 0;
+                if (prop === "minimum" || prop === "quantity" || prop === "step" ? int < 1 : int <= 0) {
+                    store[prop] = prop === "minimum" || prop === "quantity" || prop === "step" ? (prop === "quantity" ? store.minimum : 1) : 0;
                 }
             });
         }
@@ -134,6 +138,7 @@
             stripMethods(opts);
             store = gg.extend(store, opts, true);
             sanityCheck(store);
+            store.id = itemId();
             item = {
                 stripal_item: true,
                 id: function () {
