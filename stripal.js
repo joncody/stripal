@@ -1727,6 +1727,14 @@
         return gg.copy(cart.items);
     };
 
+    stripal.length = function () {
+        return Object.keys(cart.items).length;
+    };
+
+    stripal.get = function (id) {
+        return cart.items[id];
+    };
+
 // opts = {
 //     name: string,
 //     price: number, (cents)
