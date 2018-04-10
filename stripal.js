@@ -1715,10 +1715,10 @@
 
     stripal.each = function (fn) {
         if (gg.isFunction(fn)) {
-            Object.keys(cart.items).forEach(function (id, i) {
+            Object.keys(cart.items).forEach(function (id) {
                 var item = cart.items[id];
 
-                fn(item, i);
+                fn(item);
             });
         }
     };
@@ -1745,26 +1745,24 @@
 // };
     stripal.newItem = (function () {
         var restricted = [
-            "constructor",
-            "prototype",
             "stripal_item",
             "id",
             "name",
             "price",
-            "add",
-            "subtract",
             "currency",
             "minimum",
             "quantity",
             "step",
-            "discount",
             "increment",
             "decrement",
+            "add",
+            "discount",
             "total",
             "cart",
             "remove",
             "set",
             "get",
+            "del",
             "object"
         ];
 
@@ -1798,6 +1796,7 @@
                 "minimum",
                 "quantity",
                 "step",
+                "add",
                 "discount"
             ];
 
@@ -1821,7 +1820,7 @@
             store = gg.extend(store, opts, true);
             sanityCheck(store);
             store.id = itemId();
-            item = {
+            item = emitter({
                 stripal_item: true,
                 id: function () {
                     return store.id;
@@ -1829,63 +1828,56 @@
                 name: function (name) {
                     if (gg.isString(name) && name !== "") {
                         store.name = name;
-                        stripal.emit("update", item, "name", store.name);
+                        item.emit("update", "name", store.name);
                     }
                     return store.name;
                 },
                 price: function (price) {
                     if (!gg.isNaN(price) && gg.toInt(price) >= 0) {
                         store.price = gg.toInt(price);
-                        stripal.emit("update", item, "price", store.price);
+                        item.emit("update", "price", store.price);
                     }
                     return store.price;
                 },
-                add: function (price) {
-                    if (!gg.isNaN(price) && gg.toInt(price) >= 0) {
-                        store.price = store.price + gg.toInt(price) < 0 ? 0 : store.price + gg.toInt(price);
-                        stripal.emit("update", item, "price", store.price);
+                add: function (add) {
+                    if (!gg.isNaN(add) && gg.toInt(add) >= 0) {
+                        store.add = gg.toInt(add);
+                        item.emit("update", "add", store.add);
                     }
-                    return store.price;
-                },
-                subtract: function (price) {
-                    if (!gg.isNaN(price) && gg.toInt(price) >= 0) {
-                        store.price = store.price - gg.toInt(price) < 0 ? 0 : store.price - gg.toInt(price);
-                        stripal.emit("update", item, "price", store.price);
-                    }
-                    return store.price;
+                    return store.add;
                 },
                 currency: function (currency) {
                     if (gg.isString(currency) && currency !== "") {
                         store.currency = currency.toUpperCase();
-                        stripal.emit("update", item, "currency", store.currency);
+                        item.emit("update", "currency", store.currency);
                     }
                     return store.currency;
                 },
                 minimum: function (minimum) {
                     if (!gg.isNaN(minimum) && gg.toInt(minimum) >= 1) {
                         store.minimum = gg.toInt(minimum);
-                        stripal.emit("update", item, "minimum", store.minimum);
+                        item.emit("update", "minimum", store.minimum);
                     }
                     return store.minimum;
                 },
                 quantity: function (quantity) {
                     if (!gg.isNaN(quantity) && gg.toInt(quantity) >= store.minimum) {
                         store.quantity = gg.toInt(quantity);
-                        stripal.emit("update", item, "quantity", store.quantity);
+                        item.emit("update", "quantity", store.quantity);
                     }
                     return store.quantity;
                 },
                 step: function (step) {
                     if (!gg.isNaN(step) && gg.toInt(step) >= 1) {
                         store.step = gg.toInt(step);
-                        stripal.emit("update", item, "step", store.step);
+                        item.emit("update", "step", store.step);
                     }
                     return store.step;
                 },
                 discount: function (discount) {
                     if (!gg.isNaN(discount) && gg.toInt(discount) >= 0) {
                         store.discount = gg.toInt(discount);
-                        stripal.emit("update", item, "discount", store.discount);
+                        item.emit("update", "discount", store.discount);
                     }
                     return store.discount;
                 },
@@ -1895,7 +1887,7 @@
                     } else if (gg.toInt(inc) >= 0) {
                         store.quantity = store.quantity + gg.toInt(inc) < store.minimum ? store.minimum : store.quantity + gg.toInt(inc);
                     }
-                    stripal.emit("update", item, "quantity", store.quantity);
+                    item.emit("update", "quantity", store.quantity);
                     return store.quantity;
                 },
                 decrement: function (dec) {
@@ -1904,22 +1896,24 @@
                     } else if (gg.toInt(dec) >= 0) {
                         store.quantity = store.quantity - gg.toInt(dec) < store.minimum ? store.minimum : store.quantity - gg.toInt(dec);
                     }
-                    stripal.emit("update", item, "quantity", store.quantity);
+                    item.emit("update", "quantity", store.quantity);
                     return store.quantity;
                 },
                 total: function () {
-                    return gg.toInt(store.quantity * store.price - store.discount);
+                    return gg.toInt(store.quantity * store.price + store.add - store.discount);
                 },
                 cart: function () {
                     if (!cart.items.hasOwnProperty(store.id)) {
                         cart.items[store.id] = item;
                         stripal.emit("cart", item);
+                        item.emit("cart");
                     }
                 },
                 remove: function () {
                     if (cart.items.hasOwnProperty(store.id)) {
                         delete cart.items[store.id];
                         stripal.emit("remove", item);
+                        item.emit("remove");
                     }
                 },
                 set: function (key, value) {
@@ -1928,18 +1922,33 @@
                     }
                     stripMethods(value);
                     store[key.trim()] = value;
-                    stripal.emit("update", item, key.trim(), value);
+                    item.emit("update", key.trim(), value);
                 },
                 get: function (key) {
-                    if (!gg.isString(key) || key === "" || restricted.indexOf(key.trim()) !== -1) {
+                    if (!gg.isString(key) || key === "" || restricted.indexOf(key.trim()) !== -1 || !store.hasOwnProperty(key.trim())) {
                         return;
                     }
                     return store[key.trim()];
                 },
-                object: function () {
-                    return gg.copy(store);
+                del: function (key) {
+                    if (!gg.isString(key) || key === "" || restricted.indexOf(key.trim()) !== -1 || !store.hasOwnProperty(key.trim())) {
+                        return;
+                    }
+                    return delete store[key];
+                },
+                object: function (added) {
+                    var o = gg.copy(store);
+
+                    if (added === true) {
+                        restricted.forEach(function (key) {
+                            if (o.hasOwnProperty(key)) {
+                                delete o[key];
+                            }
+                        });
+                    }
+                    return o;
                 }
-            };
+            });
             return Object.freeze(item);
         };
     }());
@@ -1947,6 +1956,7 @@
     stripal.stripeKey = function (key) {
         if (gg.isString(key) && key !== "") {
             cart.stripeKey = key;
+            stripal.emit("update", "stripeKey", cart.currency);
         }
         return cart.stripeKey;
     };
@@ -1954,6 +1964,7 @@
     stripal.paypalKey = function (key) {
         if (gg.isString(key) && key !== "") {
             cart.paypalKey = key;
+            stripal.emit("update", "paypalKey", cart.currency);
         }
         return cart.paypalKey;
     };
@@ -1961,6 +1972,7 @@
     stripal.currency = function (currency) {
         if (gg.isString(currency) && currency !== "") {
             cart.currency = currency.toUpperCase();
+            stripal.emit("update", "currency", cart.currency);
         }
         return cart.currency;
     };
@@ -1968,6 +1980,7 @@
     stripal.tax = function (tax) {
         if (!gg.isNaN(tax)) {
             cart.tax = gg.toFloat(tax);
+            stripal.emit("update", "tax", cart.tax);
         }
         return cart.tax;
     };
