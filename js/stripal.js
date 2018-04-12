@@ -585,14 +585,16 @@
             db.transaction(["cart"], "readonly").objectStore("cart").get("default").onsuccess = function (e) {
                 var data = e.target.result;
 
-                cart.id = data.id;
-                cart.stripeKey = data.stripeKey;
-                cart.paypalKey = data.paypalKey;
-                cart.currency = data.currency;
-                cart.tax = data.tax;
-                Object.keys(data.items).forEach(function (id) {
-                    stripal.newItem(data.items[id]).cart();
-                });
+                if (data) {
+                    cart.id = data.id;
+                    cart.stripeKey = data.stripeKey;
+                    cart.paypalKey = data.paypalKey;
+                    cart.currency = data.currency;
+                    cart.tax = data.tax;
+                    Object.keys(data.items).forEach(function (id) {
+                        stripal.newItem(data.items[id]).cart();
+                    });
+                }
             };
         };
         dbrequest.onupgradeneeded = function (e) {
