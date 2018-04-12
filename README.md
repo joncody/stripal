@@ -7,6 +7,7 @@ A simple, elegant shopping cart with either a Stripe or Paypal checkout.
 ## stripal
 - stripal.each(_function_)
 - stripal.items()
+- stripal.quantity()
 - stripal.length()
 - stripal.get(_number_)
 - stripal.newItem(_object_)

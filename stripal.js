@@ -1727,6 +1727,15 @@
         return gg.copy(cart.items);
     };
 
+    stripal.quantity = function () {
+        var quantity = 0;
+
+        stripal.each(function (item) {
+            quantity += item.quantity();
+        });
+        return quantity;
+    };
+
     stripal.length = function () {
         return Object.keys(cart.items).length;
     };
