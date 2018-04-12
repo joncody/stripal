@@ -41,6 +41,7 @@ A simple, elegant shopping cart with either a Stripe or Paypal checkout.
 - item.remove()
 - item.set(_string_, _mixed_)
 - item.get(_string_)
+- item.del(_string_)
 - item.object()
 #### events
 - item.on("cart");
