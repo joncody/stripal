@@ -1708,6 +1708,17 @@
             return cart.id;
         };
     }());
+    var indexedDB = global.indexedDB || global.mozIndexedDB || global.webkitIndexedDB || global.msIndexedDB;
+    var IDBTransaction = global.IDBTransaction || global.webkitIDBTransaction || global.msIDBTransaction || { READ_WRITE: "readwrite" };
+    var IDBKeyRange = global.IDBKeyRange || global.webkitIDBKeyRange || global.msIDBKeyRange;
+    var dbrequest;
+
+    if (!indexedDB) {
+        throw {
+            name: "TypeError",
+            message: "indexedDB is undefined"
+        };
+    }
 
     stripal.each = function (fn) {
         if (gg.isFunction(fn)) {
@@ -1719,7 +1730,7 @@
         }
     };
 
-    function updateLocalStorage() {
+    function updateStorage() {
         var data = {
             id: cart.id,
             stripeKey: cart.stripeKey,
@@ -1732,8 +1743,9 @@
         stripal.each(function (item) {
             data.items[item.id()] = item.object();
         });
-
-        global.localStorage.setItem("stripal", JSON.stringify(data));
+        if (dbrequest) {
+            dbrequest.result.transaction(["cart"], "readwrite").objectStore("cart").put(data, "default");
+        }
     }
 
     stripal.items = function () {
@@ -1853,7 +1865,7 @@
                     if (gg.isString(name) && name !== "") {
                         store.name = name;
                         if (cart.items.hasOwnProperty(store.id)) {
-                            updateLocalStorage();
+                            updateStorage();
                         }
                         stripal.emit("item-update", item, "name", store.name);
                         item.emit("update", "name", store.name);
@@ -1864,7 +1876,7 @@
                     if (!gg.isNaN(price) && gg.toInt(price) >= 0) {
                         store.price = gg.toInt(price);
                         if (cart.items.hasOwnProperty(store.id)) {
-                            updateLocalStorage();
+                            updateStorage();
                         }
                         stripal.emit("item-update", item, "price", store.price);
                         item.emit("update", "price", store.price);
@@ -1875,7 +1887,7 @@
                     if (!gg.isNaN(add) && gg.toInt(add) >= 0) {
                         store.add = gg.toInt(add);
                         if (cart.items.hasOwnProperty(store.id)) {
-                            updateLocalStorage();
+                            updateStorage();
                         }
                         stripal.emit("item-update", item, "add", store.add);
                         item.emit("update", "add", store.add);
@@ -1886,7 +1898,7 @@
                     if (gg.isString(currency) && currency !== "") {
                         store.currency = currency.toUpperCase();
                         if (cart.items.hasOwnProperty(store.id)) {
-                            updateLocalStorage();
+                            updateStorage();
                         }
                         stripal.emit("item-update", item, "currency", store.currency);
                         item.emit("update", "currency", store.currency);
@@ -1897,7 +1909,7 @@
                     if (!gg.isNaN(minimum) && gg.toInt(minimum) >= 1) {
                         store.minimum = gg.toInt(minimum);
                         if (cart.items.hasOwnProperty(store.id)) {
-                            updateLocalStorage();
+                            updateStorage();
                         }
                         stripal.emit("item-update", item, "minimum", store.minimum);
                         item.emit("update", "minimum", store.minimum);
@@ -1908,7 +1920,7 @@
                     if (!gg.isNaN(quantity) && gg.toInt(quantity) >= store.minimum) {
                         store.quantity = gg.toInt(quantity);
                         if (cart.items.hasOwnProperty(store.id)) {
-                            updateLocalStorage();
+                            updateStorage();
                         }
                         stripal.emit("item-update", item, "quantity", store.quantity);
                         item.emit("update", "quantity", store.quantity);
@@ -1919,7 +1931,7 @@
                     if (!gg.isNaN(step) && gg.toInt(step) >= 1) {
                         store.step = gg.toInt(step);
                         if (cart.items.hasOwnProperty(store.id)) {
-                            updateLocalStorage();
+                            updateStorage();
                         }
                         stripal.emit("item-update", item, "step", store.step);
                         item.emit("update", "step", store.step);
@@ -1930,7 +1942,7 @@
                     if (!gg.isNaN(discount) && gg.toInt(discount) >= 0) {
                         store.discount = gg.toInt(discount);
                         if (cart.items.hasOwnProperty(store.id)) {
-                            updateLocalStorage();
+                            updateStorage();
                         }
                         stripal.emit("item-update", item, "discount", store.discount);
                         item.emit("update", "discount", store.discount);
@@ -1944,7 +1956,7 @@
                         store.quantity = store.quantity + gg.toInt(inc) < store.minimum ? store.minimum : store.quantity + gg.toInt(inc);
                     }
                     if (cart.items.hasOwnProperty(store.id)) {
-                        updateLocalStorage();
+                        updateStorage();
                     }
                     stripal.emit("item-update", item, "quantity", store.quantity);
                     item.emit("update", "quantity", store.quantity);
@@ -1957,7 +1969,7 @@
                         store.quantity = store.quantity - gg.toInt(dec) < store.minimum ? store.minimum : store.quantity - gg.toInt(dec);
                     }
                     if (cart.items.hasOwnProperty(store.id)) {
-                        updateLocalStorage();
+                        updateStorage();
                     }
                     stripal.emit("item-update", item, "quantity", store.quantity);
                     item.emit("update", "quantity", store.quantity);
@@ -1969,7 +1981,7 @@
                 cart: function () {
                     if (!cart.items.hasOwnProperty(store.id)) {
                         cart.items[store.id] = item;
-                        updateLocalStorage();
+                        updateStorage();
                         stripal.emit("item-cart", item);
                         item.emit("cart");
                     }
@@ -1977,7 +1989,7 @@
                 remove: function () {
                     if (cart.items.hasOwnProperty(store.id)) {
                         delete cart.items[store.id];
-                        updateLocalStorage();
+                        updateStorage();
                         stripal.emit("item-remove", item);
                         item.emit("remove");
                     }
@@ -1989,7 +2001,7 @@
                     stripMethods(value);
                     store[key.trim()] = value;
                     if (cart.items.hasOwnProperty(store.id)) {
-                        updateLocalStorage();
+                        updateStorage();
                     }
                     stripal.emit("item-update", item, key.trim(), value);
                     item.emit("update", key.trim(), value);
@@ -2005,7 +2017,7 @@
                         return;
                     }
                     if (cart.items.hasOwnProperty(store.id)) {
-                        updateLocalStorage();
+                        updateStorage();
                     }
                     stripal.emit("item-update", item, key.trim());
                     item.emit("update", key.trim());
@@ -2031,7 +2043,7 @@
     stripal.stripeKey = function (key) {
         if (gg.isString(key) && key !== "") {
             cart.stripeKey = key;
-            updateLocalStorage();
+            updateStorage();
             stripal.emit("update", "stripeKey", cart.currency);
         }
         return cart.stripeKey;
@@ -2040,7 +2052,7 @@
     stripal.paypalKey = function (key) {
         if (gg.isString(key) && key !== "") {
             cart.paypalKey = key;
-            updateLocalStorage();
+            updateStorage();
             stripal.emit("update", "paypalKey", cart.currency);
         }
         return cart.paypalKey;
@@ -2049,7 +2061,7 @@
     stripal.currency = function (currency) {
         if (gg.isString(currency) && currency !== "") {
             cart.currency = currency.toUpperCase();
-            updateLocalStorage();
+            updateStorage();
             stripal.emit("update", "currency", cart.currency);
         }
         return cart.currency;
@@ -2058,7 +2070,7 @@
     stripal.tax = function (tax) {
         if (!gg.isNaN(tax)) {
             cart.tax = gg.toFloat(tax);
-            updateLocalStorage();
+            updateStorage();
             stripal.emit("update", "tax", cart.tax);
         }
         return cart.tax;
@@ -2235,18 +2247,41 @@
     global.stripal = Object.freeze(stripal);
 
     global.onload = function () {
-        var data = JSON.parse(global.localStorage.getItem("stripal"));
-
-        if (data) {
-            cart.id = data.id;
-            stripal.stripeKey(data.stripeKey);
-            stripal.paypalKey(data.paypalKey);
-            stripal.currency(data.currency);
-            stripal.tax(data.tax);
-            Object.keys(data.items).forEach(function (id) {
-                stripal.newItem(data.items[id]).cart();
-            });
+        function dbError(e) {
+            throw e;
         }
+        dbrequest = indexedDB.open("stripal");
+        dbrequest.onerror = dbError;
+        dbrequest.onsuccess = function (e) {
+            var db = e.target.result;
+
+            db.onerror = dbError;
+            db.transaction(["cart"], "readonly").objectStore("cart").get("default").onsuccess = function (e) {
+                var data = e.target.result;
+
+                cart.id = data.id;
+                cart.stripeKey = data.stripeKey;
+                cart.paypalKey = data.paypalKey;
+                cart.currency = data.currency;
+                cart.tax = data.tax;
+                Object.keys(data.items).forEach(function (id) {
+                    stripal.newItem(data.items[id]).cart();
+                });
+            };
+        };
+        dbrequest.onupgradeneeded = function (e) {
+            var db = e.target.result;
+            var objectStore;
+
+            db.onerror = dbError;
+            objectStore = db.createObjectStore("cart");
+            objectStore.createIndex("id", "id", { unique: false });
+            objectStore.createIndex("stripeKey", "stripeKey", { unique: false });
+            objectStore.createIndex("paypalKey", "paypalKey", { unique: false });
+            objectStore.createIndex("currency", "currency", { unique: false });
+            objectStore.createIndex("tax", "tax", { unique: false });
+            objectStore.createIndex("items", "items", { unique: false });
+        };
     };
 
 }(window || this));
