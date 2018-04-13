@@ -1713,13 +1713,6 @@
     var IDBKeyRange = global.IDBKeyRange || global.webkitIDBKeyRange || global.msIDBKeyRange;
     var dbrequest;
 
-    if (!indexedDB) {
-        throw {
-            name: "TypeError",
-            message: "indexedDB is undefined"
-        };
-    }
-
     stripal.each = function (fn) {
         if (gg.isFunction(fn)) {
             Object.keys(cart.items).forEach(function (id) {
@@ -2246,44 +2239,57 @@
 
     global.stripal = Object.freeze(stripal);
 
-    global.onload = function () {
-        function dbError(e) {
-            throw e;
-        }
-        dbrequest = indexedDB.open("stripal");
-        dbrequest.onerror = dbError;
-        dbrequest.onsuccess = function (e) {
-            var db = e.target.result;
-
-            db.onerror = dbError;
-            db.transaction(["cart"], "readonly").objectStore("cart").get("default").onsuccess = function (e) {
-                var data = e.target.result;
-
-                if (data) {
-                    cart.id = data.id;
-                    cart.stripeKey = data.stripeKey;
-                    cart.paypalKey = data.paypalKey;
-                    cart.currency = data.currency;
-                    cart.tax = data.tax;
-                    Object.keys(data.items).forEach(function (id) {
-                        stripal.newItem(data.items[id]).cart();
-                    });
-                }
-            };
+    if (!indexedDB) {
+        throw {
+            name: "TypeError",
+            message: "indexedDB is undefined"
         };
-        dbrequest.onupgradeneeded = function (e) {
-            var db = e.target.result;
-            var objectStore;
+    }
 
-            db.onerror = dbError;
-            objectStore = db.createObjectStore("cart");
-            objectStore.createIndex("id", "id", { unique: false });
-            objectStore.createIndex("stripeKey", "stripeKey", { unique: false });
-            objectStore.createIndex("paypalKey", "paypalKey", { unique: false });
-            objectStore.createIndex("currency", "currency", { unique: false });
-            objectStore.createIndex("tax", "tax", { unique: false });
-            objectStore.createIndex("items", "items", { unique: false });
+    function dbError(e) {
+        throw e;
+    }
+
+    dbrequest = indexedDB.open("stripal");
+    dbrequest.onerror = dbError;
+    dbrequest.onsuccess = function (e) {
+        var db = e.target.result;
+
+        db.onerror = dbError;
+        db.transaction(["cart"], "readonly").objectStore("cart").get("default").onsuccess = function (e) {
+            var data = e.target.result;
+
+            function cartItems() {
+                Object.keys(data.items).forEach(function (id) {
+                    stripal.newItem(data.items[id]).cart();
+                });
+            }
+
+            if (data) {
+                cart.id = data.id;
+                cart.stripeKey = data.stripeKey;
+                cart.paypalKey = data.paypalKey;
+                cart.currency = data.currency;
+                cart.tax = data.tax;
+                if (document.readyState === "complete") {
+                    cartItems();
+                } else {
+                    global.addEventListener("load", cartItems, false);
+            }
         };
+    };
+    dbrequest.onupgradeneeded = function (e) {
+        var db = e.target.result;
+        var objectStore;
+
+        db.onerror = dbError;
+        objectStore = db.createObjectStore("cart");
+        objectStore.createIndex("id", "id", { unique: false });
+        objectStore.createIndex("stripeKey", "stripeKey", { unique: false });
+        objectStore.createIndex("paypalKey", "paypalKey", { unique: false });
+        objectStore.createIndex("currency", "currency", { unique: false });
+        objectStore.createIndex("tax", "tax", { unique: false });
+        objectStore.createIndex("items", "items", { unique: false });
     };
 
 }(window || this));
