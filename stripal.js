@@ -2275,6 +2275,7 @@
                     cartItems();
                 } else {
                     global.addEventListener("load", cartItems, false);
+                }
             }
         };
     };
