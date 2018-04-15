@@ -29,12 +29,14 @@ A simple, elegant shopping cart with either a Stripe or Paypal checkout.
 - item.id()
 - item.name([_string_])
 - item.price([_number_||_string_])
-- item.add([_number_])
+- item.add([_number_||_string_])
+- item.flatadd([_number_||_string_])
 - item.currency([_string_])
 - item.minimum([_number_])
 - item.quantity([_number_||_string_])
 - item.step([_number_||_string_])
 - item.discount([_number_||_string_])
+- item.flatdiscount([_number_||_string_])
 - item.increment([_number_||_string_])
 - item.decrement([_number_||_string_])
 - item.total()
@@ -47,4 +49,4 @@ A simple, elegant shopping cart with either a Stripe or Paypal checkout.
 #### events
 - item.on("cart", _function () {}_);
 - item.on("remove", _function () {}_);
-- item.on("update", _function (property, value) {}_);
+- item.on("update", _function (property _string_, value _mixed_) {}_);

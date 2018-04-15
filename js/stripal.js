@@ -109,7 +109,9 @@
             "increment",
             "decrement",
             "add",
+            "flatadd",
             "discount",
+            "flatdiscount",
             "total",
             "cart",
             "remove",
@@ -150,7 +152,9 @@
                 "quantity",
                 "step",
                 "add",
-                "discount"
+                "flatadd",
+                "discount",
+                "flatdiscount"
             ];
 
             props.forEach(function (prop) {
@@ -213,6 +217,17 @@
                     }
                     return store.add;
                 },
+                flatadd: function (flatadd) {
+                    if (!gg.isNaN(flatadd) && gg.toInt(flatadd) >= 0) {
+                        store.flatadd = gg.toInt(flatadd);
+                        if (cart.items.hasOwnProperty(store.id)) {
+                            updateStorage();
+                        }
+                        stripal.emit("item-update", item, "flatadd", store.flatadd);
+                        item.emit("update", "flatadd", store.flatadd);
+                    }
+                    return store.flatadd;
+                },
                 currency: function (currency) {
                     if (gg.isString(currency) && currency !== "") {
                         store.currency = currency.toUpperCase();
@@ -268,6 +283,17 @@
                     }
                     return store.discount;
                 },
+                flatdiscount: function (flatdiscount) {
+                    if (!gg.isNaN(flatdiscount) && gg.toInt(flatdiscount) >= 0) {
+                        store.flatdiscount = gg.toInt(flatdiscount);
+                        if (cart.items.hasOwnProperty(store.id)) {
+                            updateStorage();
+                        }
+                        stripal.emit("item-update", item, "flatdiscount", store.flatdiscount);
+                        item.emit("update", "flatdiscount", store.flatdiscount);
+                    }
+                    return store.flatdiscount;
+                },
                 increment: function (inc) {
                     if (gg.isNaN(inc)) {
                         store.quantity = store.quantity + store.step < store.minimum ? store.minimum : store.quantity + store.step;
@@ -295,7 +321,11 @@
                     return store.quantity;
                 },
                 total: function () {
-                    return gg.toInt(store.quantity * store.price + store.add - store.discount);
+                    var orders = store.quantity / store.step;
+                    var addtotal = (store.add * orders) + store.flatadd;
+                    var discounttotal = (store.discount * orders) + store.flatdiscount;
+
+                    return gg.toInt(store.quantity * store.price + addtotal - discounttotal);
                 },
                 cart: function () {
                     if (!cart.items.hasOwnProperty(store.id)) {
