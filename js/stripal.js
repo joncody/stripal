@@ -88,14 +88,6 @@
         return cart.items[id];
     };
 
-// opts = {
-//     name: string,
-//     price: number, (cents)
-//     step: number, (amount to increase/decrease quantity by when calling increment/decrement)
-//     quiet: boolean, (trigger cart event)
-//     discount: number, (amount to subtract from price)
-//     any: any, (any additional properties that are not functions are stored as well)
-// };
     stripal.newItem = (function () {
         var restricted = [
             "stripal_item",
