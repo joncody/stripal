@@ -1842,9 +1842,7 @@
             stripMethods(opts);
             store = gg.extend(store, opts, true);
             sanityCheck(store);
-            if (!store.id) {
-                store.id = nextid();
-            }
+            store.id = nextid();
             item = emitter({
                 stripal_item: true,
                 id: function () {
