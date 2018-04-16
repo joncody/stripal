@@ -1693,6 +1693,7 @@
 
     var stripal = emitter();
     var cart = {
+        loaded: false,
         id: 0,
         stripeKey: "",
         paypalKey: "",
@@ -1724,6 +1725,7 @@
     };
 
     function updateStorage() {
+        var db = dbrequest && dbrequest.result;
         var data = {
             id: cart.id,
             stripeKey: cart.stripeKey,
@@ -1736,10 +1738,14 @@
         stripal.each(function (item) {
             data.items[item.id()] = item.object();
         });
-        if (dbrequest) {
-            dbrequest.result.transaction(["cart"], "readwrite").objectStore("cart").put(data, "default");
+        if (db) {
+            db.transaction(["cart"], "readwrite").objectStore("cart").put(data, "default");
         }
     }
+
+    stripal.loaded = function () {
+        return cart.loaded;
+    };
 
     stripal.items = function () {
         return gg.copy(cart.items);
@@ -2267,6 +2273,7 @@
     }
 
     function dbError(e) {
+        console.log(e.target.errorCode);
         throw e;
     }
 
@@ -2283,6 +2290,8 @@
                 Object.keys(data.items).forEach(function (id) {
                     stripal.newItem(data.items[id]).cart();
                 });
+                cart.loaded = true;
+                stripal.emit("load");
             }
 
             if (data) {
