@@ -626,11 +626,15 @@
                 cart.paypalKey = data.paypalKey;
                 cart.currency = data.currency;
                 cart.tax = data.tax;
-                if (document.readyState === "complete") {
-                    cartItems();
-                } else {
-                    global.addEventListener("load", cartItems, false);
-                }
+            } else {
+                data = {
+                    items: []
+                };
+            }
+            if (document.readyState === "complete") {
+                cartItems();
+            } else {
+                global.addEventListener("load", cartItems, false);
             }
         };
     };
