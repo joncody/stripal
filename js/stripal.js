@@ -563,9 +563,45 @@
                         name: o.name,
                         description: o.description || o.paypal_description || "",
                         quantity: o.quantity,
-                        price: gg.toFloat(o.total / 100, 2),
+                        price: gg.toFloat(o.price / 100, 2),
                         currency: o.currency
                     });
+                    if (o.add > 0) {
+                        p.payment.transactions[0].item_list.items.push({
+                            name: o.name + " - Add",
+                            description: o.description || o.paypal_description || "",
+                            quantity: o.quantity / o.step,
+                            price: gg.toFloat(o.add / 100, 2),
+                            currency: o.currency
+                        });
+                    }
+                    if (o.flatadd > 0) {
+                        p.payment.transactions[0].item_list.items.push({
+                            name: o.name + " - Flat Add",
+                            description: o.description || o.paypal_description || "",
+                            quantity: 1,
+                            price: gg.toFloat(o.flatadd / 100, 2),
+                            currency: o.currency
+                        });
+                    }
+                    if (o.discount > 0) {
+                        p.payment.transactions[0].item_list.items.push({
+                            name: o.name + " - Discount",
+                            description: o.description || o.paypal_description || "",
+                            quantity: o.quantity / o.step,
+                            price: gg.toFloat(-1 * o.discount / 100, 2),
+                            currency: o.currency
+                        });
+                    }
+                    if (o.flatdiscount > 0) {
+                        p.payment.transactions[0].item_list.items.push({
+                            name: o.name + " - Flat Discount",
+                            description: o.description || o.paypal_description || "",
+                            quantity: 1,
+                            price: gg.toFloat(-1 * o.flatdiscount / 100, 2),
+                            currency: o.currency
+                        });
+                    }
                 });
                 return actions.payment.create(p);
             },
