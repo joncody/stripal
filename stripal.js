@@ -2237,7 +2237,7 @@
                         name: o.name,
                         description: o.description || o.paypal_description || "",
                         quantity: o.quantity,
-                        price: gg.toFloat(o.price / 100, 2),
+                        price: gg.toFloat(o.total / 100, 2),
                         currency: o.currency
                     });
                 });
