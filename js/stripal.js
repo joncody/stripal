@@ -165,7 +165,9 @@
         }
 
         return function (opts) {
-            var store = {};
+            var store = {
+                currency: "USD"
+            };
             var item;
 
             if (!gg.isObject(opts)) {
@@ -377,6 +379,8 @@
                                 delete o[key];
                             }
                         });
+                    } else {
+                        o.total = item.total();
                     }
                     return o;
                 }
@@ -456,8 +460,8 @@
 //     closed: function
 // };
     function stripeCheckout(opts) {
-        var button = gg.create("button").attr("id", "stripe-button");
-        var script = gg.create("script").attr("src", "https://checkout.stripe.com/checkout.js");
+        var button = gg.create("div").attr("id", "stripe-button");
+        var script = gg.create("script").attr("id", "stripe-checkout-script").attr("type", "application/javascript").attr("src", "https://checkout.stripe.com/checkout.js");
         var config = gg.extend({
             key: cart.stripeKey,
             token: function (token, args) {
@@ -479,7 +483,7 @@
             closed: gg.noop
         }, opts, true);
 
-        script.on("load", function () {
+        function init() {
             var handler = StripeCheckout.configure(config);
 
             function openHandler(e) {
@@ -493,8 +497,14 @@
 
             button.on("click", openHandler, false);
             global.addEventListener("popstate", closeHandler, false);
-        });
-        script.appendTo(document.body);
+        }
+
+        if (!gg.getById("stripe-checkout-script")) {
+            script.on("load", init);
+            script.appendTo(document.body);
+        } else {
+            init();
+        }
         return button;
     }
 
@@ -510,8 +520,8 @@
 //     onError: function
 // };
     function paypalCheckout(opts) {
-        var button = gg.create("button").attr("id", "paypal-button");
-        var script = gg.create("script").data("version-4", "").attr("src", "https://www.paypalobjects.com/api/checkout.js");
+        var button = gg.create("div").attr("id", "paypal-button");
+        var script = gg.create("script").attr("id", "paypal-checkout-script").data("version-4", "").attr("type", "application/javascript").attr("src", "https://www.paypalobjects.com/api/checkout.js");
         var config = gg.extend({
             env: "production",
             locale: "en_US",
@@ -571,10 +581,17 @@
                 console.log("paypal: payment error", err);
             }
         }, opts, true);
-        script.on("load", function () {
+
+        function init() {
             paypal.Button.render(config, button.getRaw(0));
-        });
-        script.appendTo(document.body);
+        }
+
+        if (!gg.getById("paypal-checkout-script")) {
+            script.on("load", init);
+            script.appendTo(document.body);
+        } else {
+            init();
+        }
         return button;
     }
 
@@ -592,15 +609,11 @@
     global.stripal = Object.freeze(stripal);
 
     if (!indexedDB) {
-        throw {
-            name: "TypeError",
-            message: "indexedDB is undefined"
-        };
+        return console.log("indexedDB is undefined");
     }
 
     function dbError(e) {
         console.log(e.target.errorCode);
-        throw e;
     }
 
     dbrequest = indexedDB.open("stripal");
