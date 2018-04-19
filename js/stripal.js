@@ -518,12 +518,12 @@
                 }
 
                 if (data) {
-                    cart.id = data.id;
-                    cart.stripeKey = data.stripeKey;
-                    cart.paypalKey = data.paypalKey;
-                    cart.currency = data.currency;
-                    cart.tax = data.tax;
-                    cart.discountflat = data.discountflat;
+                    cart.id = data.id || cart.id;
+                    cart.stripeKey = data.stripeKey || cart.stripeKey;
+                    cart.paypalKey = data.paypalKey || cart.paypalKey;
+                    cart.currency = data.currency || cart.currency;
+                    cart.tax = data.tax || cart.tax;
+                    cart.discountflat = data.discountflat || cart.discountflat;
                 } else {
                     data = { items: [] };
                 }
