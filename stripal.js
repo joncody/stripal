@@ -142,7 +142,6 @@
     global.emitter = Object.freeze(emitter);
 
 }(window || this));
-
 //    Title: gg.js
 //    Author: Jon Cody
 //
@@ -1671,7 +1670,6 @@
     global.gg = Object.freeze(gg);
 
 }(window || this));
-
 //    Title: stripal.js
 //    Author: Jon Cody
 //
@@ -1699,6 +1697,7 @@
         paypalKey: "",
         currency: "USD",
         tax: 7.75,
+        discountflat: 0,
         items: {}
     };
     var nextid = (function () {
@@ -1711,117 +1710,15 @@
     }());
 
     stripal.each = function (fn) {
-        if (gg.isFunction(fn)) {
-            Object.keys(cart.items).forEach(function (id) {
-                var item = cart.items[id];
-
-                fn(item);
-            });
-        }
+        gg.each(cart.items, fn);
     };
 
-    stripal.load = (function () {
-        var indexedDB = global.indexedDB || global.mozIndexedDB || global.webkitIndexedDB || global.msIndexedDB;
-        var dbrequest;
-
-        function dbNotSupported() {
-            console.log("indexedDB was not found to be supported!");
-        }
-
-        if (!indexedDB) {
-            return dbNotSupported;
-        }
-
-        function dbError(e) {
-            console.log(e.target.errorCode);
-        }
-
-        function dbSuccess(e) {
-            var db = e.target.result;
-
-            db.onerror = dbError;
-            db.transaction(["cart"], "readonly").objectStore("cart").get("default").onsuccess = function (e) {
-                var data = e.target.result;
-
-                function cartItems() {
-                    Object.keys(data.items).forEach(function (id) {
-                        stripal.newItem(data.items[id]).cart();
-                    });
-                    cart.loaded = true;
-                    stripal.emit("load");
-                }
-
-                if (data) {
-                    cart.id = data.id;
-                    cart.stripeKey = data.stripeKey;
-                    cart.paypalKey = data.paypalKey;
-                    cart.currency = data.currency;
-                    cart.tax = data.tax;
-                } else {
-                    data = {
-                        items: []
-                    };
-                }
-                if (document.readyState === "complete") {
-                    cartItems();
-                } else {
-                    global.addEventListener("load", cartItems, false);
-                }
-            };
-        }
-
-        function dbUpgrade(e) {
-            var db = e.target.result;
-            var objectStore;
-
-            db.onerror = dbError;
-            objectStore = db.createObjectStore("cart");
-            objectStore.createIndex("id", "id", { unique: false });
-            objectStore.createIndex("stripeKey", "stripeKey", { unique: false });
-            objectStore.createIndex("paypalKey", "paypalKey", { unique: false });
-            objectStore.createIndex("currency", "currency", { unique: false });
-            objectStore.createIndex("tax", "tax", { unique: false });
-            objectStore.createIndex("items", "items", { unique: false });
-        }
-
-        function dbUpdate() {
-            var db = dbrequest && dbrequest.result;
-            var data = {
-                id: cart.id,
-                stripeKey: cart.stripeKey,
-                paypalKey: cart.paypalKey,
-                currency: cart.currency,
-                tax: cart.tax,
-                items: {}
-            };
-
-            stripal.each(function (item) {
-                data.items[item.id()] = item.object();
-            });
-            if (db) {
-                db.transaction(["cart"], "readwrite").objectStore("cart").put(data, "default");
-            }
-        }
-
-        stripal.dbUpdate = dbUpdate;
-
-        return function (dbname) {
-            if (cart.loaded) {
-                return;
-            }
-            dbrequest = indexedDB.open(dbname);
-            dbrequest.onerror = dbError;
-            dbrequest.onsuccess = dbSuccess;
-            dbrequest.onupgradeneeded = dbUpgrade;
-        };
-    }());
-
-    stripal.loaded = function () {
-        return cart.loaded;
+    stripal.get = function (id) {
+        return cart.items[id];
     };
 
-    stripal.items = function () {
-        return gg.copy(cart.items);
+    stripal.length = function () {
+        return Object.keys(cart.items).length;
     };
 
     stripal.quantity = function () {
@@ -1833,48 +1730,185 @@
         return quantity;
     };
 
-    stripal.length = function () {
-        return Object.keys(cart.items).length;
+    stripal.find = (function () {
+        var operators = ["<=", ">=", "!=", "<", ">"];
+
+        return function (properties) {
+            var items = [];
+
+            stripal.each(function (item) {
+                var o = item.object();
+                var match = true;
+
+                if (!gg.isObject(properties) || gg.isEmpty(properties)) {
+                    items.push(item);
+                    return;
+                }
+
+                gg.each(properties, function (value, property) {
+                    var operation = false;
+                    var x;
+
+                    if (gg.isString(value)) {
+                        operators.some(function (operator) {
+                            if (value.indexOf(operator) === 0) {
+                                operation = operator;
+                                value = gg.toInt(value.slice(operator.length));
+                                return true;
+                            }
+                            return false;
+                        });
+                    }
+                    switch (operation) {
+                    case "<=":
+                        if (o[property] > value) {
+                            match = false;
+                        }
+                        break;
+                    case ">=":
+                        if (o[property] < value) {
+                            match = false;
+                        }
+                        break;
+                    case "!=":
+                        if (o[property] === value) {
+                            match = false;
+                        }
+                        break;
+                    case "<":
+                        if (o[property] >= value) {
+                            match = false;
+                        }
+                        break;
+                    case ">":
+                        if (o[property] <= value) {
+                            match = false;
+                        }
+                        break;
+                    default:
+                        if (value instanceof RegExp) {
+                            if (!value.test(o[property])) {
+                                match = false;
+                            }
+                        } else if (o[property] !== value) {
+                            match = false;
+                        }
+                        break;
+                    }
+                });
+                if (match) {
+                    items.push(item);
+                }
+            });
+            return items;
+        };
+    }());
+
+    stripal.items = function () {
+        return cart.items;
     };
 
-    stripal.get = function (id) {
-        return cart.items[id];
+    stripal.save = function () {
+        return;
+    };
+
+    stripal.loaded = function () {
+        return cart.loaded;
+    };
+
+    stripal.empty = function () {
+        stripal.each(function (item) {
+            item.remove();
+        });
+    };
+
+    stripal.stripeKey = function (key) {
+        if (gg.isString(key) && key !== "") {
+            cart.stripeKey = key;
+            stripal.save();
+            stripal.emit("update", "stripeKey", cart.currency);
+        }
+        return cart.stripeKey;
+    };
+
+    stripal.paypalKey = function (key) {
+        if (gg.isString(key) && key !== "") {
+            cart.paypalKey = key;
+            stripal.save();
+            stripal.emit("update", "paypalKey", cart.currency);
+        }
+        return cart.paypalKey;
+    };
+
+    stripal.currency = function (currency) {
+        if (gg.isString(currency) && currency !== "") {
+            cart.currency = currency.toUpperCase();
+            stripal.save();
+            stripal.emit("update", "currency", cart.currency);
+        }
+        return cart.currency;
+    };
+
+    stripal.tax = function (tax) {
+        if (!gg.isNaN(tax)) {
+            cart.tax = gg.toFloat(tax);
+            stripal.save();
+            stripal.emit("update", "tax", cart.tax);
+        }
+        return cart.tax;
+    };
+
+    stripal.discountflat = function (discountflat) {
+        if (!gg.isNaN(discountflat) && gg.toInt(discountflat) >= 0) {
+            cart.discountflat = gg.toInt(discountflat);
+            stripal.save();
+            stripal.emit("update", "discountflat", cart.discountflat);
+        }
+        return cart.discountflat;
+    };
+
+    stripal.subtotal = function () {
+        var subtotal = 0;
+
+        stripal.each(function (item) {
+            subtotal += item.total();
+        });
+        return Math.ceil(subtotal - cart.discountflat);
+    };
+
+    stripal.total = function () {
+        var subtotal = stripal.subtotal();
+        var taxpercent = cart.tax / 100;
+
+        return Math.ceil(subtotal + (subtotal * taxpercent));
     };
 
     stripal.newItem = (function () {
         var restricted = [
             "stripal_item",
             "id",
+            "quiet",
             "name",
             "price",
             "currency",
             "minimum",
             "quantity",
             "step",
-            "increment",
-            "decrement",
             "add",
-            "flatadd",
+            "addflat",
             "discount",
-            "flatdiscount",
-            "total",
-            "cart",
-            "remove",
-            "set",
-            "get",
-            "del",
-            "object"
+            "discountflat"
         ];
 
         function stripMethods(value) {
             var i;
 
             if (gg.isObject(value)) {
-                Object.keys(value).forEach(function (key) {
-                    if (gg.isFunction(value[key])) {
-                        delete value[key];
-                    } else if (gg.isObject(value[key]) || gg.isArray(value[key])) {
-                        stripMethods(value[key]);
+                gg.each(value, function (v, k) {
+                    if (gg.isFunction(v)) {
+                        delete value[k];
+                    } else if (gg.isObject(v) || gg.isArray(v)) {
+                        stripMethods(v);
                     }
                 });
             } else if (gg.isArray(value)) {
@@ -1897,9 +1931,9 @@
                 "quantity",
                 "step",
                 "add",
-                "flatadd",
+                "addflat",
                 "discount",
-                "flatdiscount"
+                "discountflat"
             ];
 
             props.forEach(function (prop) {
@@ -1913,7 +1947,8 @@
 
         return function (opts) {
             var store = {
-                currency: "USD"
+                currency: "USD",
+                quiet: false
             };
             var item;
 
@@ -1926,16 +1961,24 @@
             store.id = nextid();
             item = emitter({
                 stripal_item: true,
-                id: function () {
-                    return store.id;
+                id: store.id,
+                save: function () {
+                    if (cart.items.hasOwnProperty(store.id)) {
+                        stripal.save();
+                    }
+                },
+                quiet: function (quiet) {
+                    if (gg.isBoolean(quiet)) {
+                        store.quiet = quiet;
+                        item.save();
+                        item.emit("update", "quiet", store.quiet);
+                    }
+                    return store.quiet;
                 },
                 name: function (name) {
                     if (gg.isString(name) && name !== "") {
                         store.name = name;
-                        if (cart.items.hasOwnProperty(store.id)) {
-                            stripal.dbUpdate();
-                        }
-                        stripal.emit("item-update", item, "name", store.name);
+                        item.save();
                         item.emit("update", "name", store.name);
                     }
                     return store.name;
@@ -1943,10 +1986,7 @@
                 price: function (price) {
                     if (!gg.isNaN(price) && gg.toInt(price) >= 0) {
                         store.price = gg.toInt(price);
-                        if (cart.items.hasOwnProperty(store.id)) {
-                            stripal.dbUpdate();
-                        }
-                        stripal.emit("item-update", item, "price", store.price);
+                        item.save();
                         item.emit("update", "price", store.price);
                     }
                     return store.price;
@@ -1954,32 +1994,23 @@
                 add: function (add) {
                     if (!gg.isNaN(add) && gg.toInt(add) >= 0) {
                         store.add = gg.toInt(add);
-                        if (cart.items.hasOwnProperty(store.id)) {
-                            stripal.dbUpdate();
-                        }
-                        stripal.emit("item-update", item, "add", store.add);
+                        item.save();
                         item.emit("update", "add", store.add);
                     }
                     return store.add;
                 },
-                flatadd: function (flatadd) {
-                    if (!gg.isNaN(flatadd) && gg.toInt(flatadd) >= 0) {
-                        store.flatadd = gg.toInt(flatadd);
-                        if (cart.items.hasOwnProperty(store.id)) {
-                            stripal.dbUpdate();
-                        }
-                        stripal.emit("item-update", item, "flatadd", store.flatadd);
-                        item.emit("update", "flatadd", store.flatadd);
+                addflat: function (addflat) {
+                    if (!gg.isNaN(addflat) && gg.toInt(addflat) >= 0) {
+                        store.addflat = gg.toInt(addflat);
+                        item.save();
+                        item.emit("update", "addflat", store.addflat);
                     }
-                    return store.flatadd;
+                    return store.addflat;
                 },
                 currency: function (currency) {
                     if (gg.isString(currency) && currency !== "") {
                         store.currency = currency.toUpperCase();
-                        if (cart.items.hasOwnProperty(store.id)) {
-                            stripal.dbUpdate();
-                        }
-                        stripal.emit("item-update", item, "currency", store.currency);
+                        item.save();
                         item.emit("update", "currency", store.currency);
                     }
                     return store.currency;
@@ -1987,10 +2018,7 @@
                 minimum: function (minimum) {
                     if (!gg.isNaN(minimum) && gg.toInt(minimum) >= 1) {
                         store.minimum = gg.toInt(minimum);
-                        if (cart.items.hasOwnProperty(store.id)) {
-                            stripal.dbUpdate();
-                        }
-                        stripal.emit("item-update", item, "minimum", store.minimum);
+                        item.save();
                         item.emit("update", "minimum", store.minimum);
                     }
                     return store.minimum;
@@ -1998,10 +2026,7 @@
                 quantity: function (quantity) {
                     if (!gg.isNaN(quantity) && gg.toInt(quantity) >= store.minimum) {
                         store.quantity = gg.toInt(quantity);
-                        if (cart.items.hasOwnProperty(store.id)) {
-                            stripal.dbUpdate();
-                        }
-                        stripal.emit("item-update", item, "quantity", store.quantity);
+                        item.save();
                         item.emit("update", "quantity", store.quantity);
                     }
                     return store.quantity;
@@ -2009,10 +2034,7 @@
                 step: function (step) {
                     if (!gg.isNaN(step) && gg.toInt(step) >= 1) {
                         store.step = gg.toInt(step);
-                        if (cart.items.hasOwnProperty(store.id)) {
-                            stripal.dbUpdate();
-                        }
-                        stripal.emit("item-update", item, "step", store.step);
+                        item.save();
                         item.emit("update", "step", store.step);
                     }
                     return store.step;
@@ -2020,24 +2042,18 @@
                 discount: function (discount) {
                     if (!gg.isNaN(discount) && gg.toInt(discount) >= 0) {
                         store.discount = gg.toInt(discount);
-                        if (cart.items.hasOwnProperty(store.id)) {
-                            stripal.dbUpdate();
-                        }
-                        stripal.emit("item-update", item, "discount", store.discount);
+                        item.save();
                         item.emit("update", "discount", store.discount);
                     }
                     return store.discount;
                 },
-                flatdiscount: function (flatdiscount) {
-                    if (!gg.isNaN(flatdiscount) && gg.toInt(flatdiscount) >= 0) {
-                        store.flatdiscount = gg.toInt(flatdiscount);
-                        if (cart.items.hasOwnProperty(store.id)) {
-                            stripal.dbUpdate();
-                        }
-                        stripal.emit("item-update", item, "flatdiscount", store.flatdiscount);
-                        item.emit("update", "flatdiscount", store.flatdiscount);
+                discountflat: function (discountflat) {
+                    if (!gg.isNaN(discountflat) && gg.toInt(discountflat) >= 0) {
+                        store.discountflat = gg.toInt(discountflat);
+                        item.save();
+                        item.emit("update", "discountflat", store.discountflat);
                     }
-                    return store.flatdiscount;
+                    return store.discountflat;
                 },
                 increment: function (inc) {
                     if (gg.isNaN(inc)) {
@@ -2045,10 +2061,7 @@
                     } else if (gg.toInt(inc) >= 0) {
                         store.quantity = store.quantity + gg.toInt(inc) < store.minimum ? store.minimum : store.quantity + gg.toInt(inc);
                     }
-                    if (cart.items.hasOwnProperty(store.id)) {
-                        stripal.dbUpdate();
-                    }
-                    stripal.emit("item-update", item, "quantity", store.quantity);
+                    item.save();
                     item.emit("update", "quantity", store.quantity);
                     return store.quantity;
                 },
@@ -2058,64 +2071,59 @@
                     } else if (gg.toInt(dec) >= 0) {
                         store.quantity = store.quantity - gg.toInt(dec) < store.minimum ? store.minimum : store.quantity - gg.toInt(dec);
                     }
-                    if (cart.items.hasOwnProperty(store.id)) {
-                        stripal.dbUpdate();
-                    }
-                    stripal.emit("item-update", item, "quantity", store.quantity);
+                    item.save();
                     item.emit("update", "quantity", store.quantity);
                     return store.quantity;
                 },
                 total: function () {
                     var orders = store.quantity / store.step;
-                    var addtotal = (store.add * orders) + store.flatadd;
-                    var discounttotal = (store.discount * orders) + store.flatdiscount;
+                    var addtotal = (store.add * orders) + store.addflat;
+                    var discounttotal = (store.discount * orders) + store.discountflat;
 
                     return gg.toInt(store.quantity * store.price + addtotal - discounttotal);
                 },
                 cart: function () {
                     if (!cart.items.hasOwnProperty(store.id)) {
                         cart.items[store.id] = item;
-                        stripal.dbUpdate();
-                        stripal.emit("item-cart", item);
+                        stripal.save();
                         item.emit("cart");
                     }
                 },
                 remove: function () {
                     if (cart.items.hasOwnProperty(store.id)) {
                         delete cart.items[store.id];
-                        stripal.dbUpdate();
-                        stripal.emit("item-remove", item);
+                        stripal.save();
                         item.emit("remove");
                     }
                 },
                 set: function (key, value) {
-                    if (!gg.isString(key) || key === "" || restricted.indexOf(key.trim()) !== -1 || gg.isFunction(value)) {
+                    var k = gg.isString(key) && key.trim();
+
+                    if (!gg.isString(k) || k === "" || restricted.indexOf(k) !== -1 || gg.isFunction(value)) {
                         return;
                     }
                     stripMethods(value);
-                    store[key.trim()] = value;
-                    if (cart.items.hasOwnProperty(store.id)) {
-                        stripal.dbUpdate();
-                    }
-                    stripal.emit("item-update", item, key.trim(), value);
-                    item.emit("update", key.trim(), value);
+                    store[k] = value;
+                    item.save();
+                    item.emit("update", k, value);
                 },
                 get: function (key) {
-                    if (!gg.isString(key) || key === "" || restricted.indexOf(key.trim()) !== -1 || !store.hasOwnProperty(key.trim())) {
+                    var k = gg.isString(key) && key.trim();
+
+                    if (!gg.isString(k) || k === "" || restricted.indexOf(k) !== -1 || !store.hasOwnProperty(k)) {
                         return;
                     }
-                    return store[key.trim()];
+                    return store[k];
                 },
                 del: function (key) {
-                    if (!gg.isString(key) || key === "" || restricted.indexOf(key.trim()) !== -1 || !store.hasOwnProperty(key.trim())) {
+                    var k = gg.isString(key) && key.trim();
+
+                    if (!gg.isString(k) || k === "" || restricted.indexOf(k) !== -1 || !store.hasOwnProperty(k)) {
                         return;
                     }
-                    if (cart.items.hasOwnProperty(store.id)) {
-                        stripal.dbUpdate();
-                    }
-                    stripal.emit("item-update", item, key.trim());
-                    item.emit("update", key.trim());
-                    return delete store[key.trim()];
+                    delete store[k];
+                    item.save();
+                    item.emit("update", k);
                 },
                 object: function (added) {
                     var o = gg.copy(store);
@@ -2132,265 +2140,333 @@
                     return o;
                 }
             });
+            item.emit = (function () {
+                var oldemit = item.emit;
+
+                return function () {
+                    var args = gg.toArray(arguments);
+
+                    if (!store.quiet) {
+                        oldemit.apply(item, args);
+                        args[0] = "item-" + args[0];
+                        args.splice(1, 0, item);
+                        stripal.emit.apply(stripal, args);
+                    }
+                };
+            }());
             return Object.freeze(item);
         };
     }());
 
-    stripal.stripeKey = function (key) {
-        if (gg.isString(key) && key !== "") {
-            cart.stripeKey = key;
-            stripal.dbUpdate();
-            stripal.emit("update", "stripeKey", cart.currency);
-        }
-        return cart.stripeKey;
-    };
+    stripal.load = (function () {
+        var indexedDB = global.indexedDB || global.mozIndexedDB || global.webkitIndexedDB || global.msIndexedDB;
+        var dbrequest;
 
-    stripal.paypalKey = function (key) {
-        if (gg.isString(key) && key !== "") {
-            cart.paypalKey = key;
-            stripal.dbUpdate();
-            stripal.emit("update", "paypalKey", cart.currency);
-        }
-        return cart.paypalKey;
-    };
-
-    stripal.currency = function (currency) {
-        if (gg.isString(currency) && currency !== "") {
-            cart.currency = currency.toUpperCase();
-            stripal.dbUpdate();
-            stripal.emit("update", "currency", cart.currency);
-        }
-        return cart.currency;
-    };
-
-    stripal.tax = function (tax) {
-        if (!gg.isNaN(tax)) {
-            cart.tax = gg.toFloat(tax);
-            stripal.dbUpdate();
-            stripal.emit("update", "tax", cart.tax);
-        }
-        return cart.tax;
-    };
-
-    stripal.subtotal = function () {
-        var subtotal = 0;
-
-        stripal.each(function (item) {
-            subtotal += item.total();
-        });
-        return Math.ceil(subtotal);
-    };
-
-    stripal.total = function () {
-        var subtotal = stripal.subtotal();
-        var taxpercent = cart.tax / 100;
-
-        return Math.ceil(subtotal + (subtotal * taxpercent));
-    };
-
-// opts = {
-//     key: string,
-//     token: function,
-//     image: string,
-//     name: string,
-//     description: string,
-//     amount: number,
-//     locale: string,
-//     zipCode: boolean,
-//     billingAddress: boolean,
-//     currency: string,
-//     panelLabel: string,
-//     shippingAddress: boolean,
-//     email: string,
-//     allowRememberMe: boolean,
-//     opened: function,
-//     closed: function
-// };
-    function stripeCheckout(opts) {
-        var button = gg.create("div").attr("id", "stripe-button");
-        var script = gg.create("script").attr("id", "stripe-checkout-script").attr("type", "application/javascript").attr("src", "https://checkout.stripe.com/checkout.js");
-        var config = gg.extend({
-            key: cart.stripeKey,
-            token: function (token, args) {
-                console.log("stripe: received token", token, args);
-            },
-            image: "https://stripe.com/img/documentation/checkout/marketplace.png",
-            name: "Stripal",
-            description: "Stripal checkout!",
-            amount: stripal.total(),
-            locale: "auto",
-            zipCode: true,
-            billingAddress: true,
-            currency: cart.currency,
-            panelLabel: "Pay",
-            shippingAddress: true,
-            email: "",
-            allowRememberMe: false,
-            opened: gg.noop,
-            closed: gg.noop
-        }, opts, true);
-
-        function init() {
-            var handler = StripeCheckout.configure(config);
-
-            function openHandler(e) {
-                e.preventDefault();
-                handler.open();
-            }
-
-            function closeHandler() {
-                handler.close();
-            }
-
-            button.on("click", openHandler, false);
-            global.addEventListener("popstate", closeHandler, false);
+        function dbNotSupported() {
+            console.log("indexedDB was not found to be supported!");
         }
 
-        if (!gg.getById("stripe-checkout-script")) {
-            script.on("load", init);
-            script.appendTo(document.body);
-        } else {
-            init();
+        if (!indexedDB) {
+            return dbNotSupported;
         }
-        return button;
-    }
 
-// opts = {
-//     env: string,
-//     locale: string,
-//     client: object,
-//     commit: boolean,
-//     style: object,
-//     payment: function,
-//     onAuthorize: function,
-//     onCancel: function,
-//     onError: function
-// };
-    function paypalCheckout(opts) {
-        var button = gg.create("div").attr("id", "paypal-button");
-        var script = gg.create("script").attr("id", "paypal-checkout-script").data("version-4", "").attr("type", "application/javascript").attr("src", "https://www.paypalobjects.com/api/checkout.js");
-        var config = gg.extend({
-            env: "production",
-            locale: "en_US",
-            client: {
-                sandbox: "",
-                production: cart.paypalKey
-            },
-            commit: true,
-            style: {
-                color: "black",
-                shape: "rect",
-                size: "responsive",
-                label: "paypal"
-            },
-            payment: function (data, actions) {
-                var p = {
-                    payment: {
-                        transactions: [{
-                            amount: {
-                                total: gg.toFloat(stripal.total() / 100, 2),
-                                currency: cart.currency,
-                                details: {
-                                    subtotal: gg.toFloat(stripal.subtotal() / 100, 2),
-                                    tax: gg.toFloat(Math.ceil(stripal.subtotal() * (stripal.tax() / 100)) / 100, 2),
-                                    shipping: "0.00"
-                                }
-                            },
-                            item_list: {
-                                items: []
-                            }
-                        }]
-                    }
-                };
+        function dbError(e) {
+            console.log(e.target.errorCode);
+        }
 
-                stripal.each(function (item) {
-                    var o = item.object();
+        function dbSuccess(e) {
+            var db = e.target.result;
 
-                    p.payment.transactions[0].item_list.items.push({
-                        name: o.name,
-                        description: o.description || o.paypal_description || "",
-                        quantity: o.quantity,
-                        price: gg.toFloat(o.price / 100, 2),
-                        currency: o.currency
+            db.onerror = dbError;
+            db.transaction(["cart"], "readonly").objectStore("cart").get("default").onsuccess = function (e) {
+                var data = e.target.result || { items: [] };
+
+                function cartItems() {
+                    gg.each(data.items, function (item) {
+                        stripal.newItem(item).cart();
                     });
-                    if (o.add > 0) {
-                        p.payment.transactions[0].item_list.items.push({
-                            name: o.name + " - Add",
-                            description: o.description || o.paypal_description || "",
-                            quantity: o.quantity / o.step,
-                            price: gg.toFloat(o.add / 100, 2),
-                            currency: o.currency
-                        });
-                    }
-                    if (o.flatadd > 0) {
-                        p.payment.transactions[0].item_list.items.push({
-                            name: o.name + " - Flat Add",
-                            description: o.description || o.paypal_description || "",
-                            quantity: 1,
-                            price: gg.toFloat(o.flatadd / 100, 2),
-                            currency: o.currency
-                        });
-                    }
-                    if (o.discount > 0) {
-                        p.payment.transactions[0].item_list.items.push({
-                            name: o.name + " - Discount",
-                            description: o.description || o.paypal_description || "",
-                            quantity: o.quantity / o.step,
-                            price: gg.toFloat(-1 * o.discount / 100, 2),
-                            currency: o.currency
-                        });
-                    }
-                    if (o.flatdiscount > 0) {
-                        p.payment.transactions[0].item_list.items.push({
-                            name: o.name + " - Flat Discount",
-                            description: o.description || o.paypal_description || "",
-                            quantity: 1,
-                            price: gg.toFloat(-1 * o.flatdiscount / 100, 2),
-                            currency: o.currency
-                        });
-                    }
-                });
-                return actions.payment.create(p);
-            },
-            onAuthorize: function (data, actions) {
-                return actions.payment.execute().then(function () {
-                    console.log("paypal: payment complete");
-                });
-            },
-            onCancel: function (data) {
-                console.log("paypal: payment cancelled", data);
-            },
-            onError: function (err) {
-                console.log("paypal: payment error", err);
+                    cart.loaded = true;
+                    stripal.emit("load");
+                }
+
+                if (data) {
+                    cart.id = data.id;
+                    cart.stripeKey = data.stripeKey;
+                    cart.paypalKey = data.paypalKey;
+                    cart.currency = data.currency;
+                    cart.tax = data.tax;
+                    cart.discountflat = data.discountflat;
+                }
+                if (document.readyState === "complete") {
+                    cartItems();
+                } else {
+                    global.addEventListener("load", cartItems, false);
+                }
+            };
+        }
+
+        function dbUpgrade(e) {
+            var db = e.target.result;
+            var objectStore;
+
+            db.onerror = dbError;
+            objectStore = db.createObjectStore("cart");
+            objectStore.createIndex("id", "id", { unique: false });
+            objectStore.createIndex("stripeKey", "stripeKey", { unique: false });
+            objectStore.createIndex("paypalKey", "paypalKey", { unique: false });
+            objectStore.createIndex("currency", "currency", { unique: false });
+            objectStore.createIndex("tax", "tax", { unique: false });
+            objectStore.createIndex("discountflat", "discountflat", { unique: false });
+            objectStore.createIndex("items", "items", { unique: false });
+        }
+
+        function dbUpdate() {
+            var db = dbrequest && dbrequest.result;
+            var data = {
+                id: cart.id,
+                stripeKey: cart.stripeKey,
+                paypalKey: cart.paypalKey,
+                currency: cart.currency,
+                tax: cart.tax,
+                discountflat: cart.discountflat,
+                items: {}
+            };
+
+            stripal.each(function (item) {
+                data.items[item.id] = item.object();
+            });
+            if (db) {
+                db.transaction(["cart"], "readwrite").objectStore("cart").put(data, "default");
             }
-        }, opts, true);
-
-        function init() {
-            paypal.Button.render(config, button.getRaw(0));
         }
 
-        if (!gg.getById("paypal-checkout-script")) {
-            script.on("load", init);
-            script.appendTo(document.body);
-        } else {
-            init();
-        }
-        return button;
-    }
+        stripal.save = dbUpdate;
 
-    stripal.checkout = function (type, opts) {
-        if (!gg.isObject(opts)) {
-            opts = {};
+        return function (dbname) {
+            if (cart.loaded) {
+                return;
+            }
+            dbrequest = indexedDB.open(dbname);
+            dbrequest.onerror = dbError;
+            dbrequest.onsuccess = dbSuccess;
+            dbrequest.onupgradeneeded = dbUpgrade;
+        };
+    }());
+
+    stripal.checkout = (function () {
+        // opts = {
+        //     key: string,
+        //     token: function,
+        //     image: string,
+        //     name: string,
+        //     description: string,
+        //     amount: number,
+        //     locale: string,
+        //     zipCode: boolean,
+        //     billingAddress: boolean,
+        //     currency: string,
+        //     panelLabel: string,
+        //     shippingAddress: boolean,
+        //     email: string,
+        //     allowRememberMe: boolean,
+        //     opened: function,
+        //     closed: function
+        // };
+        function stripeCheckout(opts) {
+            var button = gg.create("div").attr("id", "stripe-button");
+            var script = gg.create("script").attr("id", "stripe-checkout-script").attr("type", "application/javascript").attr("src", "https://checkout.stripe.com/checkout.js");
+            var config = gg.extend({
+                key: cart.stripeKey,
+                token: function (token, args) {
+                    stripal.emit("stripe-checkout-complete", token, args);
+                },
+                image: "https://stripe.com/img/documentation/checkout/marketplace.png",
+                name: "Stripal",
+                description: "Stripal Checkout!",
+                amount: stripal.total(),
+                locale: "auto",
+                zipCode: true,
+                billingAddress: true,
+                currency: cart.currency,
+                panelLabel: "Pay",
+                shippingAddress: true,
+                email: "",
+                allowRememberMe: false,
+                opened: gg.noop,
+                closed: gg.noop
+            }, opts, true);
+
+            function init() {
+                var handler = StripeCheckout.configure(config);
+
+                function openHandler(e) {
+                    e.preventDefault();
+                    handler.open();
+                    stripal.emit("stripe-checkout-start");
+                }
+
+                function closeHandler() {
+                    handler.close();
+                }
+
+                button.on("click", openHandler, false);
+                global.addEventListener("popstate", closeHandler, false);
+            }
+
+            if (!gg.getById("stripe-checkout-script")) {
+                script.on("load", init);
+                script.appendTo(document.body);
+            } else {
+                init();
+            }
+            return button;
         }
-        if (type === "stripe") {
-            return stripeCheckout(opts);
-        } else if (type === "paypal") {
-            return paypalCheckout(opts);
+
+        // opts = {
+        //     env: string,
+        //     locale: string,
+        //     client: object,
+        //     commit: boolean,
+        //     style: object,
+        //     payment: function,
+        //     onAuthorize: function,
+        //     onCancel: function,
+        //     onError: function
+        // };
+        function paypalCheckout(opts) {
+            var button = gg.create("div").attr("id", "paypal-button");
+            var script = gg.create("script").attr("id", "paypal-checkout-script").data("version-4", "").attr("type", "application/javascript").attr("src", "https://www.paypalobjects.com/api/checkout.js");
+            var config = gg.extend({
+                env: "production",
+                locale: "en_US",
+                client: {
+                    sandbox: "",
+                    production: cart.paypalKey
+                },
+                commit: true,
+                style: {
+                    color: "black",
+                    shape: "rect",
+                    size: "responsive",
+                    label: "paypal"
+                },
+                payment: function (data, actions) {
+                    var p = {
+                        payment: {
+                            transactions: [{
+                                amount: {
+                                    total: gg.toFloat(stripal.total() / 100, 2),
+                                    currency: cart.currency,
+                                    details: {
+                                        subtotal: gg.toFloat(stripal.subtotal() / 100, 2),
+                                        tax: gg.toFloat(Math.ceil(stripal.subtotal() * (stripal.tax() / 100)) / 100, 2),
+                                        shipping: "0.00"
+                                    }
+                                },
+                                item_list: {
+                                    items: []
+                                }
+                            }]
+                        }
+                    };
+
+                    stripal.each(function (item) {
+                        var o = item.object();
+
+                        p.payment.transactions[0].item_list.items.push({
+                            name: o.name,
+                            description: o.description || o.paypal_description || "",
+                            quantity: o.quantity,
+                            price: gg.toFloat(o.price / 100, 2),
+                            currency: o.currency
+                        });
+                        if (o.add > 0) {
+                            p.payment.transactions[0].item_list.items.push({
+                                name: o.name + " - Add",
+                                description: o.description || o.paypal_description || "",
+                                quantity: o.quantity / o.step,
+                                price: gg.toFloat(o.add / 100, 2),
+                                currency: o.currency
+                            });
+                        }
+                        if (o.addflat > 0) {
+                            p.payment.transactions[0].item_list.items.push({
+                                name: o.name + " - Add Flat",
+                                description: o.description || o.paypal_description || "",
+                                quantity: 1,
+                                price: gg.toFloat(o.addflat / 100, 2),
+                                currency: o.currency
+                            });
+                        }
+                        if (o.discount > 0) {
+                            p.payment.transactions[0].item_list.items.push({
+                                name: o.name + " - Discount",
+                                description: o.description || o.paypal_description || "",
+                                quantity: o.quantity / o.step,
+                                price: gg.toFloat(-1 * o.discount / 100, 2),
+                                currency: o.currency
+                            });
+                        }
+                        if (o.discountflat > 0) {
+                            p.payment.transactions[0].item_list.items.push({
+                                name: o.name + " - Discount Flat",
+                                description: o.description || o.paypal_description || "",
+                                quantity: 1,
+                                price: gg.toFloat(-1 * o.discountflat / 100, 2),
+                                currency: o.currency
+                            });
+                        }
+                    });
+                    if (cart.discountflat > 0) {
+                        p.payment.transactions[0].item_list.items.push({
+                            name: "Discount Flat",
+                            description: o.description || o.paypal_description || "",
+                            quantity: 1,
+                            price: gg.toFloat(-1 * cart.discountflat / 100, 2),
+                            currency: o.currency
+                        });
+                    }
+                    stripal.emit("paypal-checkout-start", p);
+                    return actions.payment.create(p);
+                },
+                onAuthorize: function (data, actions) {
+                    return actions.payment.execute().then(function () {
+                        stripal.emit("paypal-checkout-complete", data);
+                    });
+                },
+                onCancel: function (data) {
+                    console.log("paypal: payment cancelled", data);
+                },
+                onError: function (err) {
+                    console.log("paypal: payment error", err);
+                }
+            }, opts, true);
+
+            function init() {
+                paypal.Button.render(config, button.getRaw(0));
+            }
+
+            if (!gg.getById("paypal-checkout-script")) {
+                script.on("load", init);
+                script.appendTo(document.body);
+            } else {
+                init();
+            }
+            return button;
         }
-    };
+
+        return function (type, opts) {
+            if (!gg.isObject(opts)) {
+                opts = {};
+            }
+            if (type === "stripe") {
+                return stripeCheckout(opts);
+            } else if (type === "paypal") {
+                return paypalCheckout(opts);
+            }
+        };
+    }());
 
     global.stripal = Object.freeze(stripal);
-
-
 
 }(window || this));
