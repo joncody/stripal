@@ -142,6 +142,7 @@
     global.emitter = Object.freeze(emitter);
 
 }(window || this));
+
 //    Title: gg.js
 //    Author: Jon Cody
 //
@@ -1670,6 +1671,7 @@
     global.gg = Object.freeze(gg);
 
 }(window || this));
+
 //    Title: stripal.js
 //    Author: Jon Cody
 //
