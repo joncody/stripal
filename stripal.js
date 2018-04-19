@@ -1891,8 +1891,8 @@
             "id",
             "quiet",
             "name",
-            "price",
             "currency",
+            "price",
             "minimum",
             "quantity",
             "step",
@@ -1985,30 +1985,6 @@
                     }
                     return store.name;
                 },
-                price: function (price) {
-                    if (!gg.isNaN(price) && gg.toInt(price) >= 0) {
-                        store.price = gg.toInt(price);
-                        item.save();
-                        item.emit("update", "price", store.price);
-                    }
-                    return store.price;
-                },
-                add: function (add) {
-                    if (!gg.isNaN(add) && gg.toInt(add) >= 0) {
-                        store.add = gg.toInt(add);
-                        item.save();
-                        item.emit("update", "add", store.add);
-                    }
-                    return store.add;
-                },
-                addflat: function (addflat) {
-                    if (!gg.isNaN(addflat) && gg.toInt(addflat) >= 0) {
-                        store.addflat = gg.toInt(addflat);
-                        item.save();
-                        item.emit("update", "addflat", store.addflat);
-                    }
-                    return store.addflat;
-                },
                 currency: function (currency) {
                     if (gg.isString(currency) && currency !== "") {
                         store.currency = currency.toUpperCase();
@@ -2016,6 +1992,14 @@
                         item.emit("update", "currency", store.currency);
                     }
                     return store.currency;
+                },
+                price: function (price) {
+                    if (!gg.isNaN(price) && gg.toInt(price) >= 0) {
+                        store.price = gg.toInt(price);
+                        item.save();
+                        item.emit("update", "price", store.price);
+                    }
+                    return store.price;
                 },
                 minimum: function (minimum) {
                     if (!gg.isNaN(minimum) && gg.toInt(minimum) >= 1) {
@@ -2040,6 +2024,22 @@
                         item.emit("update", "step", store.step);
                     }
                     return store.step;
+                },
+                add: function (add) {
+                    if (!gg.isNaN(add) && gg.toInt(add) >= 0) {
+                        store.add = gg.toInt(add);
+                        item.save();
+                        item.emit("update", "add", store.add);
+                    }
+                    return store.add;
+                },
+                addflat: function (addflat) {
+                    if (!gg.isNaN(addflat) && gg.toInt(addflat) >= 0) {
+                        store.addflat = gg.toInt(addflat);
+                        item.save();
+                        item.emit("update", "addflat", store.addflat);
+                    }
+                    return store.addflat;
                 },
                 discount: function (discount) {
                     if (!gg.isNaN(discount) && gg.toInt(discount) >= 0) {
