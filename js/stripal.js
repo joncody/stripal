@@ -507,7 +507,7 @@
 
             db.onerror = dbError;
             db.transaction(["cart"], "readonly").objectStore("cart").get("default").onsuccess = function (e) {
-                var data = e.target.result || { items: [] };
+                var data = e.target.result;
 
                 function cartItems() {
                     gg.each(data.items, function (item) {
@@ -524,6 +524,8 @@
                     cart.currency = data.currency;
                     cart.tax = data.tax;
                     cart.discountflat = data.discountflat;
+                } else {
+                    data = { items: [] };
                 }
                 if (document.readyState === "complete") {
                     cartItems();
