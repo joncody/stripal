@@ -606,7 +606,7 @@
             var config = gg.extend({
                 key: cart.stripeKey,
                 token: function (token, args) {
-                    stripal.emit("stripe-checkout-complete", token, args);
+                    stripal.emit("stripe-checkout-end", token, args);
                 },
                 image: "https://stripe.com/img/documentation/checkout/marketplace.png",
                 name: "Stripal",
@@ -759,7 +759,7 @@
                 },
                 onAuthorize: function (data, actions) {
                     return actions.payment.execute().then(function () {
-                        stripal.emit("paypal-checkout-complete", data);
+                        stripal.emit("paypal-checkout-end", data);
                     });
                 },
                 onCancel: function (data) {
