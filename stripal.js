@@ -1995,7 +1995,6 @@
         function dbUpdate() {
             var db = dbrequest && dbrequest.result;
             var data = {
-                id: cart.id,
                 stripeKey: cart.stripeKey,
                 paypalKey: cart.paypalKey,
                 currency: cart.currency,
