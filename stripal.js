@@ -1588,8 +1588,10 @@
 
     stripal.empty = function () {
         stripal.each(function (item) {
+            item.quiet(true);
             item.remove();
         });
+        stripal.emit("empty");
     };
 
     stripal.stripeKey = function (key) {
