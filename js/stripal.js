@@ -623,7 +623,7 @@
                 allowRememberMe: false,
                 opened: gg.noop,
                 closed: gg.noop
-            }, opts, false);
+            }, opts, true);
 
             function init() {
                 var handler = StripeCheckout.configure(config);
@@ -769,7 +769,7 @@
                 onError: function (err) {
                     console.log("paypal: payment error", err);
                 }
-            }, opts, false);
+            }, opts, true);
 
             function init() {
                 paypal.Button.render(config, button.getRaw(0));
