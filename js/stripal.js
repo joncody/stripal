@@ -520,7 +520,6 @@
                 }
 
                 if (data) {
-                    cart.id = data.id || cart.id;
                     cart.stripeKey = data.stripeKey || cart.stripeKey;
                     cart.paypalKey = data.paypalKey || cart.paypalKey;
                     cart.currency = data.currency || cart.currency;
@@ -543,7 +542,6 @@
 
             db.onerror = dbError;
             objectStore = db.createObjectStore("cart");
-            objectStore.createIndex("id", "id", { unique: false });
             objectStore.createIndex("stripeKey", "stripeKey", { unique: false });
             objectStore.createIndex("paypalKey", "paypalKey", { unique: false });
             objectStore.createIndex("currency", "currency", { unique: false });
@@ -555,7 +553,6 @@
         function dbUpdate() {
             var db = dbrequest && dbrequest.result;
             var data = {
-                id: cart.id,
                 stripeKey: cart.stripeKey,
                 paypalKey: cart.paypalKey,
                 currency: cart.currency,
