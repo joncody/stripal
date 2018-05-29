@@ -156,7 +156,7 @@
         if (gg.isString(key) && key !== "") {
             cart.stripeKey = key;
             stripal.save();
-            stripal.emit("update", "stripeKey", cart.currency);
+            stripal.emit("update", "stripeKey", cart.stripeKey);
         }
         return cart.stripeKey;
     };
@@ -165,7 +165,7 @@
         if (gg.isString(key) && key !== "") {
             cart.paypalKey = key;
             stripal.save();
-            stripal.emit("update", "paypalKey", cart.currency);
+            stripal.emit("update", "paypalKey", cart.paypalKey);
         }
         return cart.paypalKey;
     };
@@ -626,7 +626,7 @@
                 allowRememberMe: false,
                 opened: gg.noop,
                 closed: gg.noop
-            }, opts, true);
+            }, opts, false);
 
             function init() {
                 var handler = StripeCheckout.configure(config);
@@ -772,7 +772,7 @@
                 onError: function (err) {
                     console.log("paypal: payment error", err);
                 }
-            }, opts, true);
+            }, opts, false);
 
             function init() {
                 paypal.Button.render(config, button.getRaw(0));
