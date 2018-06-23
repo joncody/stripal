@@ -165,16 +165,14 @@
     var listeners = {};
     var keyboardListeners = [];
     var mouseListeners = [];
-    var ggId = (function () {
+    var ggid = (function () {
         var id = 0;
         var maxint = Math.pow(2, 53) - 1;
 
         return function () {
-            if (id < maxint) {
-                id = id + 1;
-            } else {
-                id = 1;
-            }
+            id = id < maxint
+                ? id + 1
+                : 1;
             return id;
         };
     }());
@@ -280,12 +278,10 @@
     function typeOf(value) {
         var type = typeof value;
 
-        if (type === "object") {
-            if (Array.isArray(value)) {
-                type = "array";
-            } else if (!value) {
-                type = "null";
-            }
+        if (Array.isArray(value)) {
+            type = "array";
+        } else if (value === null) {
+            type = "null";
         }
         return type;
     }
@@ -358,7 +354,7 @@
     }
 
     function isBuffer(buffer) {
-        return !!global.ArrayBuffer && buffer instanceof ArrayBuffer;
+        return !isUndefined(global.ArrayBuffer) && buffer instanceof ArrayBuffer;
     }
 
     function isNode(node) {
@@ -369,19 +365,28 @@
         return isObject(object) && Object.keys(object).length === 0;
     }
 
+    function isGG(object) {
+        return isObject(object) && object.gg === true;
+    }
+
     function isNaN(nan, noparse, base) {
-        return noparse ? Number.isNaN(nan) : Number.isNaN(global.parseInt(nan, isNumber(base) ? base : 10));
+        return noparse
+            ? Number.isNaN(nan)
+            : Number.isNaN(global.parseInt(nan, isNumber(base)
+                ? base
+                : 10));
     }
 
     function toArray(value) {
-        var array = [];
+        var array;
 
-        if (isBuffer(value)) {
-            value = new Uint8Array(value);
-        }
-        if (isString(value) || isArray(value) || isArrayLike(value) || isTypedArray(value)) {
+        if (isGG(value)) {
+            array = value.raw();
+        } else if (isBuffer(value)) {
+            array = new Uint8Array(value);
+        } else if (isString(value) || isArray(value) || isArrayLike(value) || isTypedArray(value)) {
             array = arrSlice(value);
-        } else if (isBoolean(value) || isNumber(value) || isFunction(value) || isObject(value)) {
+        } else {
             array = [value];
         }
         return array;
@@ -406,21 +411,25 @@
     }
 
     function toUint8(value) {
-        if (isTypedArray(value) || isArray(value) || isBuffer(value) || isNumber(value)) {
-            value = new Uint8Array(value);
+        var uint8;
+
+        if (isGG(value)) {
+            uint8 = new Uint8Array(value.raw());
         } else if (isString(value)) {
-            value = new Uint8Array(getCodesFromString(value));
+            uint8 = new Uint8Array(getCodesFromString(value));
+        } else if (isArray(value) || isArrayLike(value) || isTypedArray(value) || isBuffer(value)) {
+            uint8 = new Uint8Array(value);
         } else {
-            value = new Uint8Array(0);
+            uint8 = new Uint8Array([value]);
         }
-        return value;
+        return uint8;
     }
 
-    function toBuffer(buffer) {
-        return toUint8(buffer).buffer;
+    function toBuffer(value) {
+        return toUint8(value).buffer;
     }
 
-    function inArray(value, array) {
+    function inArray(array, value) {
         return isArray(array) && array.indexOf(value) > -1;
     }
 
@@ -461,40 +470,38 @@
     }
 
     function inherits(ctor, superCtor) {
-        if (isFunction(ctor) && isFunction(superCtor)) {
-            ctor.ggSuper = superCtor;
-            ctor.prototype = Object.create(superCtor.prototype, {
-                constructor: {
-                    value: ctor,
-                    enumberable: false,
-                    writable: true,
-                    configurable: true
-                }
-            });
+        if (!isFunction(ctor) || !isFunction(superCtor)) {
+            return ctor;
         }
+        ctor.ggSuper = superCtor;
+        ctor.prototype = Object.create(superCtor.prototype, {
+            constructor: {
+                value: ctor,
+                enumberable: false,
+                writable: true,
+                configurable: true
+            }
+        });
         return ctor;
     }
 
     function each(items, func, thisarg) {
+        if (!isFunction(func)) {
+            return;
+        }
         if (isUndefined(thisarg)) {
             thisarg = items;
         }
-        if (items && isFunction(func)) {
-            if (isNode(items)) {
-                func.call(thisarg, items, 0, items);
-            } else if (isArrayLike(items)) {
-                toArray(items).forEach(func, thisarg);
-            } else if (isArray(items)) {
-                items.forEach(func, thisarg);
-            } else if (isObject(items)) {
-                if (items.gg === true) {
-                    items.each(func);
-                } else {
-                    Object.keys(items).forEach(function (key) {
-                        func.call(thisarg, items[key], key, items);
-                    });
-                }
-            }
+        if (isGG(items)) {
+            items.eachRaw(func);
+        } else if (isNode(items)) {
+            func.call(thisarg, items, 0, items);
+        } else if (isArray(items) || isArrayLike(items) || isTypedArray(items) || isBuffer(items)) {
+            toArray(items).forEach(func, thisarg);
+        } else if (isObject(items)) {
+            Object.keys(items).forEach(function (key) {
+                func.call(thisarg, items[key], key, items);
+            });
         }
         return thisarg;
     }
@@ -519,98 +526,85 @@
     }
 
     function extend(object, add, overwrite) {
+        if (!isObject(object) || !isObject(add)) {
+            return object;
+        }
         overwrite = isBoolean(overwrite)
             ? overwrite
             : true;
-        if (isObject(object) && isObject(add)) {
-            each(add, function (value, key) {
-                if (overwrite || !object.hasOwnProperty(key)) {
-                    object[key] = copy(value);
-                }
-            });
-        }
+        each(add, function (value, key) {
+            if (overwrite || !object.hasOwnProperty(key)) {
+                object[key] = copy(value);
+            }
+        });
         return object;
     }
 
     function equal(one, two) {
-        var onetype = typeOf(one);
-        var twotype = typeOf(two);
-        var onekeys;
-        var twokeys;
         var result = true;
 
-        if (onetype !== twotype) {
+        if (typeOf(one) !== typeOf(two) || (typeOf(one) !== "array" && typeOf(one) !== "object" && one !== two)) {
             result = false;
-        } else if (onetype === "array") {
-            if (one.length !== two.length) {
-                result = false;
-            } else {
-                one.forEach(function (val) {
-                    if (two.indexOf(val) === -1) {
-                        result = false;
-                    }
-                });
-            }
-        } else if (onetype === "object") {
-            onekeys = Object.keys(one);
-            twokeys = Object.keys(two);
-            if (onekeys.length !== twokeys.length) {
-                result = false;
-            } else {
-                onekeys.forEach(function (key) {
-                    if (one[key] !== two[key]) {
-                        result = false;
-                    }
-                });
-            }
-        } else if (one !== two) {
-            result = false;
+        } else if (typeOf(one) === "array") {
+            one.forEach(function (val) {
+                if (two.indexOf(val) === -1) {
+                    result = false;
+                }
+            });
+        } else if (typeOf(one) === "object") {
+            Object.keys(one).forEach(function (key) {
+                if (one[key] !== two[key]) {
+                    result = false;
+                }
+            });
         }
         return result;
     }
 
     function toInt(value, base) {
-        var int = global.parseInt(isString(value) ? value.replace(",", "") : value, isNumber(base) ? base : 10);
+        var int = global.parseInt(isString(value)
+            ? value.replace(",", "")
+            : value, isNumber(base)
+                ? base
+                : 10);
 
-        return Number.isNaN(int) ? 0 : int;
+        return Number.isNaN(int)
+            ? 0
+            : int;
     }
 
     function toFloat(value, digits) {
-        var float = global.parseFloat(isString(value) ? value.replace(",", "") : value);
+        var float = global.parseFloat(isString(value)
+            ? value.replace(",", "")
+            : value);
 
-        if (Number.isNaN(float)) {
-            float = 0;
-        }
-        if (isNumber(digits)) {
-            float = global.parseFloat(float).toFixed(digits);
-        }
-        return float;
+        return Number.isNaN(float)
+            ? 0
+            : isNumber(digits)
+                ? float.toFixed(digits)
+                : float;
     }
 
-    function getById(id, object) {
-        id = supplant(id, object);
-        return document.getElementById(id);
+    function getbyid(id, object) {
+        return document.getElementById(supplant(id, object));
     }
 
     function select(selector, object, node) {
-        selector = supplant(selector, object);
         return isNode(node)
-            ? node.querySelector(selector)
-            : document.querySelector(selector);
+            ? node.querySelector(supplant(selector, object))
+            : document.querySelector(supplant(selector, object));
     }
 
     function selectAll(selector, object, node) {
-        selector = supplant(selector, object);
         return isNode(node)
-            ? node.querySelectorAll(selector)
-            : document.querySelectorAll(selector);
+            ? node.querySelectorAll(supplant(selector, object))
+            : document.querySelectorAll(supplant(selector, object));
     }
 
-    function gg(selector, object) {
+    function gg(mselector, object) {
         var gobject = {
             gg: true
         };
-        var prestore = [];
         var store = [];
 
         function closure(func, node, arg) {
@@ -625,58 +619,57 @@
             var clone;
 
             if (isObject(node) && node.gg === true && node.length() === 1) {
-                node = node.getRaw();
+                node = node.raw();
             }
             if (isNode(node)) {
                 nodeid = global.parseInt(node.getAttribute("data-gg-id"), 10);
+                clone = node.cloneNode(true);
             }
-            clone = node.cloneNode(true);
-            cloneid = ggId();
+            if (!isNumber(nodeid) || !listeners.hasOwnProperty(nodeid)) {
+                return clone;
+            }
+            cloneid = ggid();
             clone.setAttribute("data-gg-id", cloneid);
-            if (isNumber(nodeid) && listeners.hasOwnProperty(nodeid)) {
-                listeners[cloneid] = {};
-                each(listeners[nodeid], function (list, type) {
-                    listeners[cloneid][type] = {};
-                    each(list, function (funcarray, funcid) {
-                        var func = funcarray[0];
-                        var bub = funcarray[2];
-                        var arg = funcarray[3];
-                        var newFunc = closure(func, clone, arg);
+            listeners[cloneid] = {};
+            each(listeners[nodeid], function (list, type) {
+                listeners[cloneid][type] = {};
+                each(list, function (funcarray, funcid) {
+                    var func = funcarray[0];
+                    var bub = funcarray[2];
+                    var arg = funcarray[3];
+                    var newFunc = closure(func, clone, arg);
 
-                        listeners[cloneid][type][funcid] = [func, newFunc, bub, arg];
-                        clone.addEventListener(type, newFunc, bub);
-                    });
+                    listeners[cloneid][type][funcid] = [func, newFunc, bub, arg];
+                    clone.addEventListener(type, newFunc, bub);
                 });
-            }
+            });
             return clone;
         }
 
-        if (selector && isString(selector)) {
-            prestore = selectAll(selector, object);
-        } else if (isNode(selector) || isArray(selector) || isArrayLike(selector) || isObject(selector)) {
-            if (selector.gg === true) {
-                return selector;
-            }
-            prestore = selector;
+        if (isGG(mselector)) {
+            return mselector;
         }
-        each(prestore, function (node) {
+        if (isString(mselector)) {
+            mselector = selectAll(mselector, object);
+        }
+        each(mselector, function (node) {
             if (isNode(node) && node.nodeType < 9) {
                 store.push(node);
             }
         });
 
         gobject.get = function (index) {
-            if (!isNumber(index) || index < 0 || index > store.length) {
-                return gg(store);
+            if (isNumber(index) && index >= 0 && index < store.length) {
+                return gg(store[index]);
             }
-            return gg(store[index]);
+            return gobject;
         };
 
-        gobject.getRaw = function (index) {
-            if (!isNumber(index) || index < 0 || index > store.length) {
-                return store;
+        gobject.raw = function (index) {
+            if (isNumber(index) && index >= 0 && index < store.length) {
+                return store[index];
             }
-            return store[index];
+            return store;
         };
 
         gobject.length = function () {
@@ -684,13 +677,20 @@
         };
 
         gobject.each = function (func) {
+            store.forEach(function (node, index, thisarg) {
+                func.call(thisarg, gg(node), index, thisarg);
+            }, gobject);
+            return gobject;
+        };
+
+        gobject.eachRaw = function (func) {
             store.forEach(func, gobject);
             return gobject;
         };
 
         gobject.add = function (nodes) {
             each(nodes, function (node) {
-                if (isNode(node)) {
+                if (isNode(node) && node.nodeType < 9) {
                     store.push(node);
                 }
             });
@@ -698,162 +698,149 @@
         };
 
         gobject.subtract = function (index) {
-            if (!isNumber(index) || index < 0 || index > store.length) {
-                return gobject;
+            if (isNumber(index) && index >= 0 && index < store.length) {
+                store.splice(index, 1);
             }
-            store.splice(index, 1);
             return gobject;
         };
 
         gobject.data = function (name, value) {
-            var dataname;
+            var dataname = isString(name) && (name.length < 4 || name.slice(0, 4) !== "data")
+                ? undoCamelCase("data-" + name)
+                : undoCamelCase(name);
             var values;
 
-            if (name && isString(name)) {
-                dataname = (name.length < 4 || name.slice(0, 4) !== "data")
-                    ? undoCamelCase("data-" + name)
-                    : undoCamelCase(name);
-                if (isUndefined(value)) {
-                    values = [];
-                    gobject.each(function (node) {
-                        values.push(node.getAttribute(dataname));
-                    });
-                    if (values.length === 0) {
-                        return;
-                    } else {
-                        return values.length === 1
-                            ? values[0]
-                            : values;
-                    }
-                }
-                gobject.each(function (node) {
-                    node.setAttribute(dataname, value);
-                });
-            }
             if (isObject(name)) {
                 each(name, function (value, key) {
                     gobject.data(key, value);
                 });
-            }
-            if (isArray(name)) {
+            } else if (isArray(name)) {
                 values = {};
                 name.forEach(function (key) {
                     values[key] = gobject.data(key);
                 });
                 return values;
+            } else if (isUndefined(value) && dataname) {
+                values = [];
+                each(store, function (node) {
+                    values.push(node.getAttribute(dataname));
+                });
+                return values.length === 0
+                    ? null
+                    : values.length === 1
+                        ? values[0]
+                        : values;
+            } else if (dataname) {
+                each(store, function (node) {
+                    node.setAttribute(dataname, value);
+                });
             }
             return gobject;
         };
 
         gobject.remData = function (name) {
-            var dataname;
+            var dataname = isString(name) && (name.length < 4 || name.slice(0, 4) !== "data")
+                ? undoCamelCase("data-" + name)
+                : undoCamelCase(name);
 
-            if (name && isString(name)) {
-                dataname = (name.length < 4 || name.slice(0, 4) !== "data")
-                    ? undoCamelCase("data-" + name)
-                    : undoCamelCase(name);
-                gobject.each(function (node) {
-                    node.removeAttribute(dataname);
+            if (isObject(name)) {
+                each(name, function (value, key) {
+                    gobject.remData(key);
                 });
             } else if (isArray(name)) {
                 name.forEach(function (key) {
                     gobject.remData(key);
+                });
+            } else if (dataname) {
+                each(store, function (node) {
+                    node.removeAttribute(dataname);
                 });
             }
             return gobject;
         };
 
         gobject.attr = function (name, value) {
-            var attrname;
+            var attrname = isString(name) && toCamelCase(name);
             var values;
 
-            if (name && isString(name)) {
-                attrname = toCamelCase(name);
-                if (isUndefined(value)) {
-                    values = [];
-                    gobject.each(function (node) {
-                        values.push(node[attrname]);
-                    });
-                    if (values.length === 0) {
-                        return;
-                    } else {
-                        return values.length === 1
-                            ? values[0]
-                            : values;
-                    }
-                }
-                gobject.each(function (node) {
-                    node[attrname] = value;
-                });
-            }
             if (isObject(name)) {
                 each(name, function (value, key) {
                     gobject.attr(key, value);
                 });
-            }
-            if (isArray(name)) {
+            } else if (isArray(name)) {
                 values = {};
                 name.forEach(function (key) {
                     values[key] = gobject.attr(key);
                 });
                 return values;
+            } else if (isUndefined(value) && attrname) {
+                values = [];
+                each(store, function (node) {
+                    values.push(node[attrname]);
+                });
+                return values.length === 0
+                    ? null
+                    : values.length === 1
+                        ? values[0]
+                        : values;
+            } else if (attrname) {
+                each(store, function (node) {
+                    node[attrname] = value;
+                });
             }
             return gobject;
         };
 
         gobject.remAttr = function (name) {
-            var attrname;
+            var attrname = isString(name) && toCamelCase(name);
 
-            if (name && isString(name)) {
-                attrname = toCamelCase(name);
-                gobject.each(function (node) {
-                    node.removeAttribute(attrname);
+            if (isObject(name)) {
+                each(name, function (value, key) {
+                    gobject.remAttr(key);
                 });
             } else if (isArray(name)) {
                 name.forEach(function (key) {
                     gobject.remAttr(key);
+                });
+            } else if (attrname) {
+                each(store, function (node) {
+                    node.removeAttribute(attrname);
                 });
             }
             return gobject;
         };
 
         gobject.prop = function (name, value) {
-            var propname;
+            var propname = isString(name) && toCamelCase(name);
             var values;
 
-            if (name && isString(name)) {
-                propname = toCamelCase(name);
-                if (isUndefined(value)) {
-                    values = [];
-                    gobject.each(function (node) {
-                        values.push(node.style[propname] || global.getComputedStyle(node, null).getPropertyValue(propname));
-                    });
-                    if (values.length === 0) {
-                        return;
-                    } else {
-                        return values.length === 1
-                            ? values[0]
-                            : values;
-                    }
-                }
-                gobject.each(function (node) {
-                    if (isNumber(value)) {
-                        value = value + "px";
-                    }
-                    node.style[propname] = value;
-                });
-            }
             if (isObject(name)) {
-                Object.keys(name).forEach(function (key) {
-                    gobject.prop(key, name[key]);
+                each(name, function (value, key) {
+                    gobject.prop(key, value);
                 });
-            }
-            if (isArray(name)) {
+            } else if (isArray(name)) {
                 values = {};
                 name.forEach(function (key) {
                     values[key] = gobject.prop(key);
                 });
                 return values;
+            } else if (isUndefined(value) && propname) {
+                values = [];
+                each(store, function (node) {
+                    values.push(node.style[propname] || global.getComputedStyle(node, null).getPropertyValue(propname));
+                });
+                return values.length === 0
+                    ? null
+                    : values.length === 1
+                        ? values[0]
+                        : values;
+            } else if (propname) {
+                value = isNumber(value)
+                    ? value + "px"
+                    : value;
+                each(store, function (node) {
+                    node.style[propname] = value;
+                });
             }
             return gobject;
         };
@@ -861,16 +848,19 @@
         gobject.style = gobject.prop;
 
         gobject.remProp = function (name) {
-            var propname;
+            var propname = isString(name) && toCamelCase(name);
 
-            if (name && isString(name)) {
-                propname = toCamelCase(name);
-                gobject.each(function (node) {
-                    node.style.removeProperty(propname);
+            if (isObject(name)) {
+                each(name, function (value, key) {
+                    gobject.remProp(key);
                 });
             } else if (isArray(name)) {
                 name.forEach(function (key) {
                     gobject.remProp(key);
+                });
+            } else if (propname) {
+                each(store, function (node) {
+                    node.style.removeProperty(propname);
                 });
             }
             return gobject;
@@ -882,261 +872,271 @@
             var values = [];
 
             if (isUndefined(string)) {
-                gobject.each(function (node) {
+                each(store, function (node) {
                     values.push(node.textContent);
                 });
-                if (values.length === 0) {
-                    return;
-                } else {
-                    return values.length === 1
+                return values.length === 0
+                    ? null
+                    : values.length === 1
                         ? values[0]
                         : values;
-                }
-            }
-            gobject.each(function (node) {
-                if (isString(string) || isNumber(string)) {
+            } else if (isString(string) || isNumber(string)) {
+                each(store, function (node) {
                     node.textContent = string;
-                }
-            });
+                });
+            }
+            return gobject;
         };
 
         gobject.remText = function remText() {
-            return gobject.each(function (node) {
+            each(store, function (node) {
                 node.textContent = "";
             });
+            return gobject;
         };
 
         gobject.html = function (string) {
             var values = [];
 
             if (isUndefined(string)) {
-                gobject.each(function (node) {
+                each(store, function (node) {
                     values.push(node.innerHTML);
                 });
-                if (values.length === 0) {
-                    return;
-                } else {
-                    return values.length === 1
+                return values.length === 0
+                    ? null
+                    : values.length === 1
                         ? values[0]
                         : values;
-                }
-            }
-            return gobject.each(function (node) {
-                if (isString(string) || isNumber(string)) {
+            } else if (isString(string) || isNumber(string)) {
+                each(store, function (node) {
                     node.innerHTML = string;
-                }
-            });
+                });
+            }
+            return gobject;
         };
 
         gobject.remHtml = function () {
-            return gobject.each(function (node) {
+            each(store, function (node) {
                 node.innerHTML = "";
             });
+            return gobject;
         };
 
         gobject.classes = function (string) {
             var values = [];
 
             if (isUndefined(string)) {
-                gobject.each(function (node) {
+                each(store, function (node) {
                     values.push(node.className);
                 });
-                if (values.length === 0) {
-                    return;
-                } else {
-                    return values.length === 1
+                return values.length === 0
+                    ? null
+                    : values.length === 1
                         ? values[0]
                         : values;
-                }
-            }
-            return gobject.each(function (node) {
-                if (isString(string)) {
+            } else if (isString(string)) {
+                each(store, function (node) {
                     node.className = string.trim();
-                }
-            });
+                });
+            }
+            return gobject;
         };
 
         gobject.addClass = function (string) {
-            if (string && isString(string)) {
-                gobject.each(function (node) {
-                    string.split(/\s/).forEach(function (cls) {
-                        var regex = new RegExp("(?:^|\\s)" + cls + "(?:$|\\s)", "g");
-
-                        if (!regex.test(node.className)) {
-                            node.className = node.className
-                                ? node.className + " " + cls
-                                : cls;
-                        }
-                    });
-                });
+            if (!isString(string)) {
+                return gobject;
             }
+            each(store, function (node) {
+                string.split(/\s/g).forEach(function (substring) {
+                    var match = new RegExp("(?:^|\\s)" + substring + "(?:$|\\s)", "g");
+
+                    node.className = match.test(node.className)
+                        ? node.className
+                        : node.className
+                            ? node.className + " " + substring
+                            : substring;
+                });
+            });
             return gobject;
         };
 
         gobject.remClass = function (string) {
-            if (string && isString(string)) {
-                gobject.each(function (node) {
-                    string.split(/\s/).forEach(function (cls) {
-                        var regex = new RegExp("(?:^|\\s)" + cls + "(?:$|\\s)", "g");
-
-                        node.className = node.className.replace(regex, " ").trim();
-                    });
-                });
+            if (!isString(string)) {
+                return gobject;
             }
+            each(store, function (node) {
+                string.split(/\s/).forEach(function (substring) {
+                    var match = new RegExp("(?:^|\\s)" + substring + "(?:$|\\s)", "g");
+
+                    node.className = node.className.replace(match, " ").trim();
+                });
+            });
             return gobject;
         };
 
         gobject.togClass = function (string) {
-            if (string && isString(string)) {
-                gobject.each(function (node) {
-                    string.split(/\s/).forEach(function (cls) {
-                        var regex = new RegExp("(?:^|\\s)" + cls + "(?:$|\\s)", "g");
-
-                        if (!regex.test(node.className)) {
-                            node.className = node.className
-                                ? node.className + " " + cls
-                                : cls;
-                        } else {
-                            node.className = node.className.replace(regex, " ").trim();
-                        }
-                    });
-                });
+            if (!isString(string)) {
+                return gobject;
             }
+            each(store, function (node) {
+                string.split(/\s/).forEach(function (substring) {
+                    var match = new RegExp("(?:^|\\s)" + substring + "(?:$|\\s)", "g");
+
+                    node.className = match.test(node.className)
+                        ? node.className.replace(match, " ").trim()
+                        : node.className
+                            ? node.className + " " + substring
+                            : substring;
+                });
+            });
             return gobject;
         };
 
         gobject.hasClass = function (string) {
             var values = [];
 
-            if (string && isString(string)) {
-                gobject.each(function (node) {
-                    values.push(string.split(/\s/).every(function (cls) {
-                        var regex = new RegExp("(?:^|\\s)" + cls + "(?:$|\\s)", "g");
-
-                        return regex.test(node.className);
-                    }));
-                });
+            if (!isString(string)) {
+                return false;
             }
-            if (values.length === 0) {
-                return;
-            } else {
-                return values.length === 1
+            each(store, function (node) {
+                values.push(string.split(/\s/g).every(function (substring) {
+                    var match = new RegExp("(?:^|\\s)" + substring + "(?:$|\\s)", "g");
+
+                    return match.test(node.className);
+                }));
+            });
+            return values.length === 0
+                ? null
+                : values.length === 1
                     ? values[0]
                     : values;
-            }
         };
 
         gobject.insert = (function () {
             var positions = ["beforebegin", "afterbegin", "beforeend", "afterend"];
 
             return function (pos, item) {
-                if (item && isString(item)) {
-                    if (!inArray(pos, positions)) {
-                        pos = "beforeend";
-                    }
-                    gobject.each(function (node) {
-                        node.insertAdjacentHTML(pos, item);
-                    });
+                if (!isString(item)) {
+                    return gobject;
                 }
+                if (!inArray(positions, pos)) {
+                    pos = "beforeend";
+                }
+                each(store, function (node) {
+                    node.insertAdjacentHTML(pos, item);
+                });
                 return gobject;
             };
         }());
 
         gobject.prepend = function (item) {
-            var copy = store.length > 1;
+            var willcopy = store.length > 1;
 
-            return gobject.each(function (node) {
+            each(store, function (node) {
                 each(item, function (child) {
-                    if (isNode(child)) {
-                        node.insertBefore(copy
-                            ? cloneNodeDeeper(child)
-                            : child, node.firstChild);
+                    if (!isNode(child)) {
+                        return;
                     }
+                    node.insertBefore(willcopy
+                        ? cloneNodeDeeper(child)
+                        : child, node.firstChild);
                 });
             });
+            return gobject;
         };
 
-        gobject.prependTo = function (parent) {
-            var copy = isArray(toArray(parent)) && toArray(parent).length > 1;
+        gobject.prependTo = function (item) {
+            var willcopy = toArray(item).length > 1;
 
-            return gobject.each(function (node) {
-                each(parent, function (par) {
-                    if (isNode(par)) {
-                        par.insertBefore(copy
-                            ? cloneNodeDeeper(node)
-                            : node, par.firstChild);
+            each(store, function (node) {
+                each(item, function (parent) {
+                    if (!isNode(parent)) {
+                        return;
                     }
+                    parent.insertBefore(willcopy
+                        ? cloneNodeDeeper(node)
+                        : node, parent.firstChild);
                 });
             });
+            return gobject;
         };
 
         gobject.append = function (item) {
-            var copy = store.length > 1;
+            var willcopy = store.length > 1;
 
-            return gobject.each(function (node) {
+            each(store, function (node) {
                 each(item, function (child) {
-                    if (isNode(child)) {
-                        node.appendChild(copy
-                            ? cloneNodeDeeper(child)
-                            : child);
+                    if (!isNode(child)) {
+                        return;
                     }
+                    node.appendChild(willcopy
+                        ? cloneNodeDeeper(child)
+                        : child);
                 });
             });
+            return gobject;
         };
 
-        gobject.appendTo = function (parent) {
-            var copy = isArray(toArray(parent)) && toArray(parent).length > 1;
+        gobject.appendTo = function (item) {
+            var willcopy = toArray(item).length > 1;
 
-            return gobject.each(function (node) {
-                each(parent, function (par) {
-                    if (isNode(par)) {
-                        par.appendChild(copy
-                            ? cloneNodeDeeper(node)
-                            : node);
+            each(store, function (node) {
+                each(item, function (parent) {
+                    if (!isNode(parent)) {
+                        return;
                     }
+                    parent.appendChild(willcopy
+                        ? cloneNodeDeeper(node)
+                        : node);
                 });
             });
+            return gobject;
         };
 
         gobject.after = function (item) {
-            var copy = store.length > 1;
+            var willcopy = store.length > 1;
 
-            return gobject.each(function (node) {
+            each(store, function (node) {
                 each(item, function (sibling) {
-                    if (isNode(sibling)) {
-                        node.parentNode.insertBefore(copy
-                            ? cloneNodeDeeper(sibling)
-                            : sibling, node.nextSibling);
+                    if (!isNode(sibling)) {
+                        return;
                     }
+                    node.parentNode.insertBefore(willcopy
+                        ? cloneNodeDeeper(sibling)
+                        : sibling, node.nextSibling);
                 });
             });
+            return gobject;
         };
 
         gobject.before = function (item) {
-            var copy = store.length > 1;
+            var willcopy = store.length > 1;
 
-            return gobject.each(function (node) {
+            each(store, function (node) {
                 each(item, function (sibling) {
-                    if (isNode(sibling)) {
-                        node.parentNode.insertBefore(copy
-                            ? cloneNodeDeeper(sibling)
-                            : sibling, node);
+                    if (!isNode(sibling)) {
+                        return;
                     }
+                    node.parentNode.insertBefore(willcopy
+                        ? cloneNodeDeeper(sibling)
+                        : sibling, node);
                 });
             });
+            return gobject;
         };
 
-        gobject.remove = function (children) {
-            if (isUndefined(children)) {
-                gobject.each(function (node) {
+        gobject.remove = function (item) {
+            if (isUndefined(item)) {
+                each(store, function (node) {
                     node.parentNode.removeChild(node);
                 });
             } else {
-                gobject.each(function (node) {
-                    each(children, function (child) {
-                        if (isNode(child) && node.contains(child)) {
-                            node.removeChild(child);
+                each(store, function (node) {
+                    each(item, function (child) {
+                        if (!isNode(child) || !node.contains(child)) {
+                            return;
                         }
+                        node.removeChild(child);
                     });
                 });
             }
@@ -1146,7 +1146,7 @@
         gobject.parents = function () {
             var nodes = [];
 
-            gobject.each(function (node) {
+            each(store, function (node) {
                 nodes.push(node.parentNode);
             });
             return gg(nodes);
@@ -1155,7 +1155,7 @@
         gobject.children = function () {
             var nodes = [];
 
-            gobject.each(function (node) {
+            each(store, function (node) {
                 nodes = nodes.concat(toArray(node.childNodes));
             });
             return gg(nodes);
@@ -1164,7 +1164,7 @@
         gobject.select = function (selector, object) {
             var nodes = [];
 
-            gobject.each(function (node) {
+            each(store, function (node) {
                 nodes = nodes.concat(toArray(select(selector, object, node)));
             });
             return gg(nodes);
@@ -1173,7 +1173,7 @@
         gobject.selectAll = function (selector, object) {
             var nodes = [];
 
-            gobject.each(function (node) {
+            each(store, function (node) {
                 nodes = nodes.concat(toArray(selectAll(selector, object, node)));
             });
             return gg(nodes);
@@ -1188,7 +1188,7 @@
             deeper = isBoolean(deeper)
                 ? deeper
                 : false;
-            gobject.each(function (node) {
+            each(store, function (node) {
                 nodes.push(deeper
                     ? cloneNodeDeeper(node)
                     : node.cloneNode(deep));
@@ -1197,87 +1197,85 @@
         };
 
         gobject.hide = function () {
-            return gobject.each(function (node) {
+            each(store, function (node) {
                 node.style.display = "none";
             });
+            return gobject;
         };
 
-        gobject.show = function () {
-            return gobject.each(function (node) {
+        gobject.unhide = function () {
+            each(store, function (node) {
                 node.style.display = "";
             });
+            return gobject;
         };
 
         gobject.create = function (tag) {
-            var element;
-
-            if (inArray(tag, taglist)) {
-                element = document.createElement(tag);
-                gobject.append(element);
-            }
-            return element === undefined
-                ? gobject
-                : gg(element);
+            return inArray(taglist, tag)
+                ? gg(document.createElement(tag)).appendTo(gobject)
+                : gobject;
         };
 
         gobject.on = function (type, func, bub, arg) {
             var funcid;
             var newFunc;
 
-            if (type && isString(type) && isFunction(func)) {
-                bub = isBoolean(bub)
-                    ? bub
-                    : false;
-                funcid = func.ggid;
-                if (!isNumber(funcid)) {
-                    funcid = ggId();
-                    func.ggid = funcid;
-                }
-                gobject.each(function (node) {
-                    var nodeid = global.parseInt(node.getAttribute("data-gg-id"), 10);
-
-                    if (!isNumber(nodeid)) {
-                        nodeid = ggId();
-                        node.setAttribute("data-gg-id", nodeid);
-                    }
-                    if (!listeners.hasOwnProperty(nodeid)) {
-                        listeners[nodeid] = {};
-                    }
-                    if (!listeners[nodeid].hasOwnProperty(type)) {
-                        listeners[nodeid][type] = {};
-                    }
-                    newFunc = closure(func, node, arg);
-                    listeners[nodeid][type][funcid] = [func, newFunc, bub, arg];
-                    node.addEventListener(type, newFunc, bub);
-                });
+            if (!isString(type) || !isFunction(func)) {
+                return gobject;
             }
+            bub = isBoolean(bub)
+                ? bub
+                : false;
+            funcid = isNumber(func.ggid)
+                ? func.ggid
+                : ggid();
+            func.ggid = funcid;
+            each(store, function (node) {
+                var nodeid = !isNumber(global.parseInt(node.getAttribute("data-gg-id"), 10))
+                    ? ggid()
+                    : global.parseInt(node.getAttribute("data-gg-id"), 10);
+
+                node.setAttribute("data-gg-id", nodeid);
+                if (!listeners.hasOwnProperty(nodeid)) {
+                    listeners[nodeid] = {};
+                }
+                if (!listeners[nodeid].hasOwnProperty(type)) {
+                    listeners[nodeid][type] = {};
+                }
+                if (listeners[nodeid][type].hasOwnProperty(funcid)) {
+                    node.removeEventListener(type, listeners[nodeid][type][funcid][1], bub);
+                }
+                newFunc = closure(func, node, arg);
+                listeners[nodeid][type][funcid] = [func, newFunc, bub, arg];
+                node.addEventListener(type, newFunc, bub);
+            });
             return gobject;
         };
 
         gobject.off = function (type, func, bub) {
-            var funcid = isFunction(func) && func.ggid;
-
-            if (type && isString(type)) {
-                bub = isBoolean(bub)
-                    ? bub
-                    : false;
-                gobject.each(function (node) {
-                    var nodeid = global.parseInt(node.getAttribute("data-gg-id"), 10);
-
-                    if (isNumber(nodeid) && listeners.hasOwnProperty(nodeid) && listeners[nodeid].hasOwnProperty(type)) {
-                        if (!isNumber(funcid)) {
-                            each(listeners[nodeid][type], function (funcarray, funcid, list) {
-                                node.removeEventListener(type, funcarray[1], bub);
-                                delete list[funcid];
-                            });
-                            delete listeners[nodeid][type];
-                        } else if (listeners[nodeid][type].hasOwnProperty(funcid)) {
-                            node.removeEventListener(type, listeners[nodeid][type][funcid][1], bub);
-                            delete listeners[nodeid][type][funcid];
-                        }
-                    }
-                });
+            if (!isString(type)) {
+                return gobject;
             }
+            bub = isBoolean(bub)
+                ? bub
+                : false;
+            each(store, function (node) {
+                var nodeid = global.parseInt(node.getAttribute("data-gg-id"), 10);
+                var funcid = isFunction(func) && func.ggid;
+
+                if (!isNumber(nodeid) || !listeners.hasOwnProperty(nodeid) || !listeners[nodeid].hasOwnProperty(type)) {
+                    return gobject;
+                }
+                if (isUndefined(func)) {
+                    each(listeners[nodeid][type], function (funcarray, funcid, list) {
+                        node.removeEventListener(type, funcarray[1], bub);
+                    });
+                    delete listeners[nodeid][type];
+                } else if (isNumber(funcid) && listeners[nodeid][type].hasOwnProperty(funcid)) {
+                    node.removeEventListener(type, listeners[nodeid][type][funcid][1], bub);
+                    delete listeners[nodeid][type][funcid];
+                }
+            });
             return gobject;
         };
 
@@ -1288,23 +1286,21 @@
                     node.removeEventListener(type, onetime, bub);
                 };
             }
-            if (type && isString(type) && isFunction(func)) {
-                bub = isBoolean(bub)
-                    ? bub
-                    : false;
-                gobject.each(function (node) {
-                    node.addEventListener(type, handler(node, arg), bub);
-                });
+            if (!isString(type) || !isFunction(func)) {
+                return gobject;
             }
+            bub = isBoolean(bub)
+                ? bub
+                : false;
+            each(store, function (node) {
+                node.addEventListener(type, handler(node, arg), bub);
+            });
             return gobject;
         };
 
         return Object.freeze(gobject);
     }
 
-// options = {
-//     keyCode: function
-// };
     var keyboardHandler = (function () {
         function keyDown(options, handlers) {
             return function (e) {
@@ -1322,11 +1318,9 @@
             var handlers = {};
             var listener;
 
-            options = isObject(options)
-                ? options
-                : {};
+            options = extend({}, options);
             each(options, function (handler, key) {
-                var keycode = parseInt(key, 10);
+                var keycode = global.parseInt(key, 10);
 
                 if (isFunction(handler) && isNumber(keycode)) {
                     handlers[keycode] = handler;
@@ -1344,9 +1338,6 @@
         });
     }
 
-// options = {
-//     keyCode: function
-// };
     var mouseHandler = (function () {
         function mouseDown(options, handlers) {
             return function (e) {
@@ -1366,7 +1357,7 @@
 
             options = extend({}, options);
             each(options, function (handler, key) {
-                var keycode = parseInt(key, 10);
+                var keycode = global.parseInt(key, 10);
 
                 if (isFunction(handler) && isNumber(keycode)) {
                     handlers[keycode] = handler;
@@ -1385,12 +1376,9 @@
     }
 
     function create(tag) {
-        var element;
-
-        if (inArray(tag, taglist)) {
-            element = document.createElement(tag);
-            return gg(element);
-        }
+        return inArray(taglist, tag)
+            ? gg(document.createElement(tag))
+            : null;
     }
 
     gg.typeOf = typeOf;
@@ -1409,6 +1397,7 @@
     gg.isBuffer = isBuffer;
     gg.isNode = isNode;
     gg.isEmpty = isEmpty;
+    gg.isGG = isGG;
     gg.isNaN = isNaN;
     gg.toArray = toArray;
     gg.toUint8 = toUint8;
@@ -1427,7 +1416,7 @@
     gg.equal = equal;
     gg.toInt = toInt;
     gg.toFloat = toFloat;
-    gg.getById = getById;
+    gg.getbyid = getbyid;
     gg.select = select;
     gg.selectAll = selectAll;
     gg.keyboardHandler = keyboardHandler;
@@ -1474,7 +1463,9 @@
         var maxint = Math.pow(2, 53) - 1;
 
         return function () {
-            cart.id = cart.id < maxint ? cart.id + 1 : 1;
+            cart.id = cart.id < maxint
+                ? cart.id + 1
+                : 1;
             return cart.id;
         };
     }());
@@ -1556,17 +1547,15 @@
                         }
                         break;
                     default:
-                        if (value instanceof RegExp) {
-                            if (!value.test(o[property])) {
-                                match = false;
-                            }
+                        if ((value instanceof RegExp) && !value.test(o[property])) {
+                            match = false;
                         } else if (o[property] !== value) {
                             match = false;
                         }
                         break;
                     }
                 });
-                if (match) {
+                if (match === true) {
                     items.push(item);
                 }
             });
@@ -1711,22 +1700,26 @@
             props.forEach(function (prop) {
                 var int = gg.toInt(store[prop]);
 
-                if (prop === "minimum" || prop === "quantity" || prop === "step" ? int < 1 : int <= 0) {
-                    store[prop] = prop === "minimum" || prop === "quantity" || prop === "step" ? (prop === "quantity" ? store.minimum : 1) : 0;
+                if (prop === "minimum" || prop === "quantity" || prop === "step"
+                        ? int < 1
+                        : int <= 0) {
+                    store[prop] = prop === "minimum" || prop === "quantity" || prop === "step"
+                        ? (prop === "quantity"
+                            ? store.minimum
+                            : 1)
+                        : 0;
                 }
             });
         }
 
         return function (opts) {
+            var item;
             var store = {
-                currency: "USD",
+                currency: cart.currency,
                 quiet: false
             };
-            var item;
 
-            if (!gg.isObject(opts)) {
-                opts = {};
-            }
+            opts = gg.extend({}, opts);
             stripMethods(opts);
             store = gg.extend(store, opts, true);
             sanityCheck(store);
@@ -1829,9 +1822,13 @@
                 },
                 increment: function (inc) {
                     if (gg.isNaN(inc)) {
-                        store.quantity = store.quantity + store.step < store.minimum ? store.minimum : store.quantity + store.step;
+                        store.quantity = store.quantity + store.step < store.minimum
+                            ? store.minimum
+                            : store.quantity + store.step;
                     } else if (gg.toInt(inc) >= 0) {
-                        store.quantity = store.quantity + gg.toInt(inc) < store.minimum ? store.minimum : store.quantity + gg.toInt(inc);
+                        store.quantity = store.quantity + gg.toInt(inc) < store.minimum
+                            ? store.minimum
+                            : store.quantity + gg.toInt(inc);
                     }
                     item.save();
                     item.emit("update", "quantity", store.quantity);
@@ -1839,9 +1836,13 @@
                 },
                 decrement: function (dec) {
                     if (gg.isNaN(dec)) {
-                        store.quantity = store.quantity - store.step < store.minimum ? store.minimum : store.quantity - store.step;
+                        store.quantity = store.quantity - store.step < store.minimum
+                            ? store.minimum
+                            : store.quantity - store.step;
                     } else if (gg.toInt(dec) >= 0) {
-                        store.quantity = store.quantity - gg.toInt(dec) < store.minimum ? store.minimum : store.quantity - gg.toInt(dec);
+                        store.quantity = store.quantity - gg.toInt(dec) < store.minimum
+                            ? store.minimum
+                            : store.quantity - gg.toInt(dec);
                     }
                     item.save();
                     item.emit("update", "quantity", store.quantity);
@@ -1871,7 +1872,7 @@
                 set: function (key, value) {
                     var k = gg.isString(key) && key.trim();
 
-                    if (!gg.isString(k) || k === "" || restricted.indexOf(k) !== -1 || gg.isFunction(value)) {
+                    if (!gg.isString(k) || k === "" || gg.inArray(restricted, k) || gg.isFunction(value)) {
                         return;
                     }
                     stripMethods(value);
@@ -1882,7 +1883,7 @@
                 get: function (key) {
                     var k = gg.isString(key) && key.trim();
 
-                    if (!gg.isString(k) || k === "" || restricted.indexOf(k) !== -1 || !store.hasOwnProperty(k)) {
+                    if (!gg.isString(k) || k === "" || gg.inArray(restricted, k) || !store.hasOwnProperty(k)) {
                         return;
                     }
                     return store[k];
@@ -1890,7 +1891,7 @@
                 del: function (key) {
                     var k = gg.isString(key) && key.trim();
 
-                    if (!gg.isString(k) || k === "" || restricted.indexOf(k) !== -1 || !store.hasOwnProperty(k)) {
+                    if (!gg.isString(k) || k === "" || gg.inArray(restricted, k) || !store.hasOwnProperty(k)) {
                         return;
                     }
                     delete store[k];
@@ -1935,7 +1936,7 @@
         var dbrequest;
 
         function dbNotSupported() {
-            console.log("indexedDB was not found to be supported!");
+            console.log("indexedDB was not found and/or supported!");
         }
 
         if (!indexedDB) {
@@ -2025,24 +2026,6 @@
     }());
 
     stripal.checkout = (function () {
-        // opts = {
-        //     key: string,
-        //     token: function,
-        //     image: string,
-        //     name: string,
-        //     description: string,
-        //     amount: number,
-        //     locale: string,
-        //     zipCode: boolean,
-        //     billingAddress: boolean,
-        //     currency: string,
-        //     panelLabel: string,
-        //     shippingAddress: boolean,
-        //     email: string,
-        //     allowRememberMe: boolean,
-        //     opened: function,
-        //     closed: function
-        // };
         function stripeCheckout(opts) {
             var button = gg.create("div").attr("id", "stripe-button");
             var script = gg.create("script").attr("id", "stripe-checkout-script").attr("type", "application/javascript").attr("src", "https://checkout.stripe.com/checkout.js");
@@ -2093,17 +2076,6 @@
             return button;
         }
 
-        // opts = {
-        //     env: string,
-        //     locale: string,
-        //     client: object,
-        //     commit: boolean,
-        //     style: object,
-        //     payment: function,
-        //     onAuthorize: function,
-        //     onCancel: function,
-        //     onError: function
-        // };
         function paypalCheckout(opts) {
             var button = gg.create("div").attr("id", "paypal-button");
             var script = gg.create("script").attr("id", "paypal-checkout-script").data("version-4", "").attr("type", "application/javascript").attr("src", "https://www.paypalobjects.com/api/checkout.js");
@@ -2140,11 +2112,12 @@
                             }]
                         }
                     };
+                    var pitems = p.payment.transactions[0].item_list.items;
 
                     stripal.each(function (item) {
                         var o = item.object();
 
-                        p.payment.transactions[0].item_list.items.push({
+                        pitems.push({
                             name: o.name,
                             description: o.description || o.paypal_description || "",
                             quantity: o.quantity,
@@ -2152,7 +2125,7 @@
                             currency: o.currency
                         });
                         if (o.add > 0) {
-                            p.payment.transactions[0].item_list.items.push({
+                            pitems.push({
                                 name: o.name + " - Add",
                                 description: o.description || o.paypal_description || "",
                                 quantity: o.quantity / o.step,
@@ -2161,7 +2134,7 @@
                             });
                         }
                         if (o.addflat > 0) {
-                            p.payment.transactions[0].item_list.items.push({
+                            pitems.push({
                                 name: o.name + " - Add Flat",
                                 description: o.description || o.paypal_description || "",
                                 quantity: 1,
@@ -2170,7 +2143,7 @@
                             });
                         }
                         if (o.discount > 0) {
-                            p.payment.transactions[0].item_list.items.push({
+                            pitems.push({
                                 name: o.name + " - Discount",
                                 description: o.description || o.paypal_description || "",
                                 quantity: o.quantity / o.step,
@@ -2179,7 +2152,7 @@
                             });
                         }
                         if (o.discountflat > 0) {
-                            p.payment.transactions[0].item_list.items.push({
+                            pitems.push({
                                 name: o.name + " - Discount Flat",
                                 description: o.description || o.paypal_description || "",
                                 quantity: 1,
@@ -2189,7 +2162,7 @@
                         }
                     });
                     if (cart.discountflat > 0) {
-                        p.payment.transactions[0].item_list.items.push({
+                        pitems.push({
                             name: "Discount Flat",
                             description: o.description || o.paypal_description || "",
                             quantity: 1,
@@ -2214,7 +2187,7 @@
             }, opts, true);
 
             function init() {
-                paypal.Button.render(config, button.getRaw(0));
+                paypal.Button.render(config, button.raw(0));
             }
 
             if (!gg.getById("paypal-checkout-script")) {
@@ -2227,9 +2200,7 @@
         }
 
         return function (type, opts) {
-            if (!gg.isObject(opts)) {
-                opts = {};
-            }
+            opts = gg.extend({}, opts)
             if (type === "stripe") {
                 return stripeCheckout(opts);
             } else if (type === "paypal") {

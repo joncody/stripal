@@ -32,7 +32,9 @@
         var maxint = Math.pow(2, 53) - 1;
 
         return function () {
-            cart.id = cart.id < maxint ? cart.id + 1 : 1;
+            cart.id = cart.id < maxint
+                ? cart.id + 1
+                : 1;
             return cart.id;
         };
     }());
@@ -114,17 +116,15 @@
                         }
                         break;
                     default:
-                        if (value instanceof RegExp) {
-                            if (!value.test(o[property])) {
-                                match = false;
-                            }
+                        if ((value instanceof RegExp) && !value.test(o[property])) {
+                            match = false;
                         } else if (o[property] !== value) {
                             match = false;
                         }
                         break;
                     }
                 });
-                if (match) {
+                if (match === true) {
                     items.push(item);
                 }
             });
@@ -269,22 +269,26 @@
             props.forEach(function (prop) {
                 var int = gg.toInt(store[prop]);
 
-                if (prop === "minimum" || prop === "quantity" || prop === "step" ? int < 1 : int <= 0) {
-                    store[prop] = prop === "minimum" || prop === "quantity" || prop === "step" ? (prop === "quantity" ? store.minimum : 1) : 0;
+                if (prop === "minimum" || prop === "quantity" || prop === "step"
+                        ? int < 1
+                        : int <= 0) {
+                    store[prop] = prop === "minimum" || prop === "quantity" || prop === "step"
+                        ? (prop === "quantity"
+                            ? store.minimum
+                            : 1)
+                        : 0;
                 }
             });
         }
 
         return function (opts) {
+            var item;
             var store = {
-                currency: "USD",
+                currency: cart.currency,
                 quiet: false
             };
-            var item;
 
-            if (!gg.isObject(opts)) {
-                opts = {};
-            }
+            opts = gg.extend({}, opts);
             stripMethods(opts);
             store = gg.extend(store, opts, true);
             sanityCheck(store);
@@ -387,9 +391,13 @@
                 },
                 increment: function (inc) {
                     if (gg.isNaN(inc)) {
-                        store.quantity = store.quantity + store.step < store.minimum ? store.minimum : store.quantity + store.step;
+                        store.quantity = store.quantity + store.step < store.minimum
+                            ? store.minimum
+                            : store.quantity + store.step;
                     } else if (gg.toInt(inc) >= 0) {
-                        store.quantity = store.quantity + gg.toInt(inc) < store.minimum ? store.minimum : store.quantity + gg.toInt(inc);
+                        store.quantity = store.quantity + gg.toInt(inc) < store.minimum
+                            ? store.minimum
+                            : store.quantity + gg.toInt(inc);
                     }
                     item.save();
                     item.emit("update", "quantity", store.quantity);
@@ -397,9 +405,13 @@
                 },
                 decrement: function (dec) {
                     if (gg.isNaN(dec)) {
-                        store.quantity = store.quantity - store.step < store.minimum ? store.minimum : store.quantity - store.step;
+                        store.quantity = store.quantity - store.step < store.minimum
+                            ? store.minimum
+                            : store.quantity - store.step;
                     } else if (gg.toInt(dec) >= 0) {
-                        store.quantity = store.quantity - gg.toInt(dec) < store.minimum ? store.minimum : store.quantity - gg.toInt(dec);
+                        store.quantity = store.quantity - gg.toInt(dec) < store.minimum
+                            ? store.minimum
+                            : store.quantity - gg.toInt(dec);
                     }
                     item.save();
                     item.emit("update", "quantity", store.quantity);
@@ -429,7 +441,7 @@
                 set: function (key, value) {
                     var k = gg.isString(key) && key.trim();
 
-                    if (!gg.isString(k) || k === "" || restricted.indexOf(k) !== -1 || gg.isFunction(value)) {
+                    if (!gg.isString(k) || k === "" || gg.inArray(restricted, k) || gg.isFunction(value)) {
                         return;
                     }
                     stripMethods(value);
@@ -440,7 +452,7 @@
                 get: function (key) {
                     var k = gg.isString(key) && key.trim();
 
-                    if (!gg.isString(k) || k === "" || restricted.indexOf(k) !== -1 || !store.hasOwnProperty(k)) {
+                    if (!gg.isString(k) || k === "" || gg.inArray(restricted, k) || !store.hasOwnProperty(k)) {
                         return;
                     }
                     return store[k];
@@ -448,7 +460,7 @@
                 del: function (key) {
                     var k = gg.isString(key) && key.trim();
 
-                    if (!gg.isString(k) || k === "" || restricted.indexOf(k) !== -1 || !store.hasOwnProperty(k)) {
+                    if (!gg.isString(k) || k === "" || gg.inArray(restricted, k) || !store.hasOwnProperty(k)) {
                         return;
                     }
                     delete store[k];
@@ -493,7 +505,7 @@
         var dbrequest;
 
         function dbNotSupported() {
-            console.log("indexedDB was not found to be supported!");
+            console.log("indexedDB was not found and/or supported!");
         }
 
         if (!indexedDB) {
@@ -583,24 +595,6 @@
     }());
 
     stripal.checkout = (function () {
-        // opts = {
-        //     key: string,
-        //     token: function,
-        //     image: string,
-        //     name: string,
-        //     description: string,
-        //     amount: number,
-        //     locale: string,
-        //     zipCode: boolean,
-        //     billingAddress: boolean,
-        //     currency: string,
-        //     panelLabel: string,
-        //     shippingAddress: boolean,
-        //     email: string,
-        //     allowRememberMe: boolean,
-        //     opened: function,
-        //     closed: function
-        // };
         function stripeCheckout(opts) {
             var button = gg.create("div").attr("id", "stripe-button");
             var script = gg.create("script").attr("id", "stripe-checkout-script").attr("type", "application/javascript").attr("src", "https://checkout.stripe.com/checkout.js");
@@ -651,17 +645,6 @@
             return button;
         }
 
-        // opts = {
-        //     env: string,
-        //     locale: string,
-        //     client: object,
-        //     commit: boolean,
-        //     style: object,
-        //     payment: function,
-        //     onAuthorize: function,
-        //     onCancel: function,
-        //     onError: function
-        // };
         function paypalCheckout(opts) {
             var button = gg.create("div").attr("id", "paypal-button");
             var script = gg.create("script").attr("id", "paypal-checkout-script").data("version-4", "").attr("type", "application/javascript").attr("src", "https://www.paypalobjects.com/api/checkout.js");
@@ -698,11 +681,12 @@
                             }]
                         }
                     };
+                    var pitems = p.payment.transactions[0].item_list.items;
 
                     stripal.each(function (item) {
                         var o = item.object();
 
-                        p.payment.transactions[0].item_list.items.push({
+                        pitems.push({
                             name: o.name,
                             description: o.description || o.paypal_description || "",
                             quantity: o.quantity,
@@ -710,7 +694,7 @@
                             currency: o.currency
                         });
                         if (o.add > 0) {
-                            p.payment.transactions[0].item_list.items.push({
+                            pitems.push({
                                 name: o.name + " - Add",
                                 description: o.description || o.paypal_description || "",
                                 quantity: o.quantity / o.step,
@@ -719,7 +703,7 @@
                             });
                         }
                         if (o.addflat > 0) {
-                            p.payment.transactions[0].item_list.items.push({
+                            pitems.push({
                                 name: o.name + " - Add Flat",
                                 description: o.description || o.paypal_description || "",
                                 quantity: 1,
@@ -728,7 +712,7 @@
                             });
                         }
                         if (o.discount > 0) {
-                            p.payment.transactions[0].item_list.items.push({
+                            pitems.push({
                                 name: o.name + " - Discount",
                                 description: o.description || o.paypal_description || "",
                                 quantity: o.quantity / o.step,
@@ -737,7 +721,7 @@
                             });
                         }
                         if (o.discountflat > 0) {
-                            p.payment.transactions[0].item_list.items.push({
+                            pitems.push({
                                 name: o.name + " - Discount Flat",
                                 description: o.description || o.paypal_description || "",
                                 quantity: 1,
@@ -747,7 +731,7 @@
                         }
                     });
                     if (cart.discountflat > 0) {
-                        p.payment.transactions[0].item_list.items.push({
+                        pitems.push({
                             name: "Discount Flat",
                             description: o.description || o.paypal_description || "",
                             quantity: 1,
@@ -772,7 +756,7 @@
             }, opts, true);
 
             function init() {
-                paypal.Button.render(config, button.getRaw(0));
+                paypal.Button.render(config, button.raw(0));
             }
 
             if (!gg.getById("paypal-checkout-script")) {
@@ -785,9 +769,7 @@
         }
 
         return function (type, opts) {
-            if (!gg.isObject(opts)) {
-                opts = {};
-            }
+            opts = gg.extend({}, opts)
             if (type === "stripe") {
                 return stripeCheckout(opts);
             } else if (type === "paypal") {
