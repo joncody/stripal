@@ -636,7 +636,7 @@
                 global.addEventListener("popstate", closeHandler, false);
             }
 
-            if (!gg.getById("stripe-checkout-script")) {
+            if (!gg.getbyid("stripe-checkout-script")) {
                 script.on("load", init);
                 script.appendTo(document.body);
             } else {
@@ -759,7 +759,7 @@
                 paypal.Button.render(config, button.raw(0));
             }
 
-            if (!gg.getById("paypal-checkout-script")) {
+            if (!gg.getbyid("paypal-checkout-script")) {
                 script.on("load", init);
                 script.appendTo(document.body);
             } else {
