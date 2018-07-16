@@ -129,6 +129,8 @@
         "var",
         "video"
     ];
+    var keyboardHandler;
+    var mouseHandler;
 
     function typeOf(value) {
         var type = typeof value;
@@ -236,7 +238,9 @@
         var array;
 
         if (isGG(value)) {
-            array = value.raw();
+            array = value.length() === 1
+                ? [value.raw()]
+                : value.raw();
         } else if (isBuffer(value)) {
             array = new Uint8Array(value);
         } else if (isString(value) || isArray(value) || isArrayLike(value) || isTypedArray(value)) {
@@ -269,7 +273,9 @@
         var uint8;
 
         if (isGG(value)) {
-            uint8 = new Uint8Array(value.raw());
+            uint8 = new Uint8Array(value.length() === 1
+                ? [value.raw()]
+                : value.raw());
         } else if (isString(value)) {
             uint8 = new Uint8Array(getCodesFromString(value));
         } else if (isArray(value) || isArrayLike(value) || isTypedArray(value) || isBuffer(value)) {
@@ -456,6 +462,19 @@
             : document.querySelectorAll(supplant(selector, object));
     }
 
+    function getStyle(node, pseudo) {
+        return global.getComputedStyle(node, isUndefined(pseudo)
+            ? null
+            : pseudo);
+    }
+
+    function setImmediate(fn) {
+        if (!isFunction(fn)) {
+            return;
+        }
+        return global.setTimeout(fn, 0);
+    }
+
     function gg(mselector, object) {
         var gobject = {
             gg: true
@@ -473,7 +492,7 @@
             var cloneid;
             var clone;
 
-            if (isObject(node) && node.gg === true && node.length() === 1) {
+            if (isGG(node) && node.length() === 1) {
                 node = node.raw();
             }
             if (isNode(node)) {
@@ -524,7 +543,9 @@
             if (isNumber(index) && index >= 0 && index < store.length) {
                 return store[index];
             }
-            return store;
+            return store.length === 1
+                ? store[0]
+                : store;
         };
 
         gobject.length = function () {
@@ -690,9 +711,6 @@
                         ? values[0]
                         : values;
             } else if (propname) {
-                value = isNumber(value)
-                    ? value + "px"
-                    : value;
                 each(store, function (node) {
                     node.style[propname] = value;
                 });
@@ -805,11 +823,15 @@
                 string.split(/\s/g).forEach(function (substring) {
                     var match = new RegExp("(?:^|\\s)" + substring + "(?:$|\\s)", "g");
 
-                    node.className = match.test(node.className)
-                        ? node.className
-                        : node.className
-                            ? node.className + " " + substring
-                            : substring;
+                    if (!isObject(node.className)) {
+                        node.className = match.test(node.className)
+                            ? node.className
+                            : node.className
+                                ? node.className + " " + substring
+                                : substring;
+                    } else {
+                        node.classList.add(substring);
+                    }
                 });
             });
             return gobject;
@@ -823,7 +845,11 @@
                 string.split(/\s/).forEach(function (substring) {
                     var match = new RegExp("(?:^|\\s)" + substring + "(?:$|\\s)", "g");
 
-                    node.className = node.className.replace(match, " ").trim();
+                    if (!isObject(node.className)) {
+                        node.className = node.className.replace(match, " ").trim();
+                    } else {
+                        node.classList.remove(substring);
+                    }
                 });
             });
             return gobject;
@@ -837,11 +863,15 @@
                 string.split(/\s/).forEach(function (substring) {
                     var match = new RegExp("(?:^|\\s)" + substring + "(?:$|\\s)", "g");
 
-                    node.className = match.test(node.className)
-                        ? node.className.replace(match, " ").trim()
-                        : node.className
-                            ? node.className + " " + substring
-                            : substring;
+                    if (!isObject(node.className)) {
+                        node.className = match.test(node.className)
+                            ? node.className.replace(match, " ").trim()
+                            : node.className
+                                ? node.className + " " + substring
+                                : substring;
+                    } else {
+                        node.classList.toggle(substring);
+                    }
                 });
             });
             return gobject;
@@ -857,7 +887,11 @@
                 values.push(string.split(/\s/g).every(function (substring) {
                     var match = new RegExp("(?:^|\\s)" + substring + "(?:$|\\s)", "g");
 
-                    return match.test(node.className);
+                    if (!isObject(node.className)) {
+                        return match.test(node.className);
+                    } else {
+                        return node.classList.contains(substring);
+                    }
                 }));
             });
             return values.length === 0
@@ -983,7 +1017,9 @@
         gobject.remove = function (item) {
             if (isUndefined(item)) {
                 each(store, function (node) {
-                    node.parentNode.removeChild(node);
+                    if (node.parentNode) {
+                        node.parentNode.removeChild(node);
+                    }
                 });
             } else {
                 each(store, function (node) {
@@ -991,7 +1027,9 @@
                         if (!isNode(child) || !node.contains(child)) {
                             return;
                         }
-                        node.removeChild(child);
+                        if (child.parentNode) {
+                            node.removeChild(child);
+                        }
                     });
                 });
             }
@@ -1049,20 +1087,6 @@
                     : node.cloneNode(deep));
             });
             return gg(nodes);
-        };
-
-        gobject.hide = function () {
-            each(store, function (node) {
-                node.style.display = "none";
-            });
-            return gobject;
-        };
-
-        gobject.unhide = function () {
-            each(store, function (node) {
-                node.style.display = "";
-            });
-            return gobject;
         };
 
         gobject.create = function (tag) {
@@ -1156,7 +1180,7 @@
         return Object.freeze(gobject);
     }
 
-    var keyboardHandler = (function () {
+    keyboardHandler = (function () {
         function keyDown(options, handlers) {
             return function (e) {
                 var keycode = e.keyCode;
@@ -1193,7 +1217,7 @@
         });
     }
 
-    var mouseHandler = (function () {
+    mouseHandler = (function () {
         function mouseDown(options, handlers) {
             return function (e) {
                 var keycode = e.button;
@@ -1274,6 +1298,8 @@
     gg.getbyid = getbyid;
     gg.select = select;
     gg.selectAll = selectAll;
+    gg.getStyle = getStyle;
+    gg.setImmediate = setImmediate;
     gg.keyboardHandler = keyboardHandler;
     gg.removeKeyboardHandlers = removeKeyboardHandlers;
     gg.mouseHandler = mouseHandler;
