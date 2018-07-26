@@ -1,5 +1,5 @@
 //    Title: stripal.js
-//    Author: Jon Cody
+//    Author: Jonathan David Cody
 //
 //    This program is free software: you can redistribute it and/or modify
 //    it under the terms of the GNU General Public License as published by
@@ -636,7 +636,7 @@
                 global.addEventListener("popstate", closeHandler, false);
             }
 
-            if (!gg.getbyid("stripe-checkout-script")) {
+            if (!gg.getById("stripe-checkout-script")) {
                 script.on("load", init);
                 script.appendTo(document.body);
             } else {
@@ -759,7 +759,7 @@
                 paypal.Button.render(config, button.raw(0));
             }
 
-            if (!gg.getbyid("paypal-checkout-script")) {
+            if (!gg.getById("paypal-checkout-script")) {
                 script.on("load", init);
                 script.appendTo(document.body);
             } else {
