@@ -17,7 +17,7 @@
 (function (global) {
     "use strict";
 
-    var stripal = emitter();
+    var stripal = gg.emitter();
     var cart = {
         loaded: false,
         id: 0,
@@ -293,7 +293,7 @@
             store = gg.extend(store, opts, true);
             sanityCheck(store);
             store.id = nextid();
-            item = emitter({
+            item = gg.emitter({
                 stripal_item: true,
                 id: store.id,
                 save: function () {
