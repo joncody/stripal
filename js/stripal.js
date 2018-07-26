@@ -180,7 +180,7 @@
     };
 
     stripal.tax = function (tax) {
-        if (!gg.isNaN(tax)) {
+        if (!gg.isNan(tax)) {
             cart.tax = gg.toFloat(tax);
             stripal.save();
             stripal.emit("update", "tax", cart.tax);
@@ -189,7 +189,7 @@
     };
 
     stripal.discountflat = function (discountflat) {
-        if (!gg.isNaN(discountflat) && gg.toInt(discountflat) >= 0) {
+        if (!gg.isNan(discountflat) && gg.toInt(discountflat) >= 0) {
             cart.discountflat = gg.toInt(discountflat);
             stripal.save();
             stripal.emit("update", "discountflat", cart.discountflat);
@@ -326,7 +326,7 @@
                     return store.currency;
                 },
                 price: function (price) {
-                    if (!gg.isNaN(price) && gg.toInt(price) >= 0) {
+                    if (!gg.isNan(price) && gg.toInt(price) >= 0) {
                         store.price = gg.toInt(price);
                         item.save();
                         item.emit("update", "price", store.price);
@@ -334,7 +334,7 @@
                     return store.price;
                 },
                 minimum: function (minimum) {
-                    if (!gg.isNaN(minimum) && gg.toInt(minimum) >= 1) {
+                    if (!gg.isNan(minimum) && gg.toInt(minimum) >= 1) {
                         store.minimum = gg.toInt(minimum);
                         item.save();
                         item.emit("update", "minimum", store.minimum);
@@ -342,7 +342,7 @@
                     return store.minimum;
                 },
                 quantity: function (quantity) {
-                    if (!gg.isNaN(quantity) && gg.toInt(quantity) >= store.minimum) {
+                    if (!gg.isNan(quantity) && gg.toInt(quantity) >= store.minimum) {
                         store.quantity = gg.toInt(quantity);
                         item.save();
                         item.emit("update", "quantity", store.quantity);
@@ -350,7 +350,7 @@
                     return store.quantity;
                 },
                 step: function (step) {
-                    if (!gg.isNaN(step) && gg.toInt(step) >= 1) {
+                    if (!gg.isNan(step) && gg.toInt(step) >= 1) {
                         store.step = gg.toInt(step);
                         item.save();
                         item.emit("update", "step", store.step);
@@ -358,7 +358,7 @@
                     return store.step;
                 },
                 add: function (add) {
-                    if (!gg.isNaN(add) && gg.toInt(add) >= 0) {
+                    if (!gg.isNan(add) && gg.toInt(add) >= 0) {
                         store.add = gg.toInt(add);
                         item.save();
                         item.emit("update", "add", store.add);
@@ -366,7 +366,7 @@
                     return store.add;
                 },
                 addflat: function (addflat) {
-                    if (!gg.isNaN(addflat) && gg.toInt(addflat) >= 0) {
+                    if (!gg.isNan(addflat) && gg.toInt(addflat) >= 0) {
                         store.addflat = gg.toInt(addflat);
                         item.save();
                         item.emit("update", "addflat", store.addflat);
@@ -374,7 +374,7 @@
                     return store.addflat;
                 },
                 discount: function (discount) {
-                    if (!gg.isNaN(discount) && gg.toInt(discount) >= 0) {
+                    if (!gg.isNan(discount) && gg.toInt(discount) >= 0) {
                         store.discount = gg.toInt(discount);
                         item.save();
                         item.emit("update", "discount", store.discount);
@@ -382,7 +382,7 @@
                     return store.discount;
                 },
                 discountflat: function (discountflat) {
-                    if (!gg.isNaN(discountflat) && gg.toInt(discountflat) >= 0) {
+                    if (!gg.isNan(discountflat) && gg.toInt(discountflat) >= 0) {
                         store.discountflat = gg.toInt(discountflat);
                         item.save();
                         item.emit("update", "discountflat", store.discountflat);
@@ -390,7 +390,7 @@
                     return store.discountflat;
                 },
                 increment: function (inc) {
-                    if (gg.isNaN(inc)) {
+                    if (gg.isNan(inc)) {
                         store.quantity = store.quantity + store.step < store.minimum
                             ? store.minimum
                             : store.quantity + store.step;
@@ -404,7 +404,7 @@
                     return store.quantity;
                 },
                 decrement: function (dec) {
-                    if (gg.isNaN(dec)) {
+                    if (gg.isNan(dec)) {
                         store.quantity = store.quantity - store.step < store.minimum
                             ? store.minimum
                             : store.quantity - store.step;
