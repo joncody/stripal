@@ -2496,69 +2496,49 @@
     }());
 
     stripal.load = (function () {
-        var indexedDB = global.indexedDB || global.mozIndexedDB || global.webkitIndexedDB || global.msIndexedDB;
         var dbrequest;
 
-        function dbNotSupported() {
-            console.log("indexedDB was not found and/or supported!");
-        }
-
-        if (!indexedDB) {
-            return dbNotSupported;
-        }
-
-        function dbError(e) {
-            console.log(e.target.errorCode);
-        }
-
         function dbSuccess(e) {
-            var db = e.target.result;
+            var data = e.target.result;
 
-            db.onerror = dbError;
-            db.transaction(["cart"], "readonly").objectStore("cart").get("default").onsuccess = function (e) {
-                var data = e.target.result;
+            function cartItems() {
+                gg.each(data.items, function (item) {
+                    stripal.newItem(item).cart();
+                });
+                cart.loaded = true;
+                stripal.emit("load");
+            }
 
-                function cartItems() {
-                    gg.each(data.items, function (item) {
-                        stripal.newItem(item).cart();
-                    });
-                    cart.loaded = true;
-                    stripal.emit("load");
-                }
-
-                if (data) {
-                    cart.stripeKey = data.stripeKey || cart.stripeKey;
-                    cart.paypalKey = data.paypalKey || cart.paypalKey;
-                    cart.currency = data.currency || cart.currency;
-                    cart.tax = data.tax || cart.tax;
-                    cart.discountflat = data.discountflat || cart.discountflat;
-                } else {
-                    data = { items: [] };
-                }
-                if (document.readyState === "complete") {
-                    cartItems();
-                } else {
-                    global.addEventListener("load", cartItems, false);
-                }
-            };
+            if (data) {
+                cart.stripeKey = data.stripeKey || cart.stripeKey;
+                cart.paypalKey = data.paypalKey || cart.paypalKey;
+                cart.currency = data.currency || cart.currency;
+                cart.tax = data.tax || cart.tax;
+                cart.discountflat = data.discountflat || cart.discountflat;
+            } else {
+                data = {
+                    items: []
+                };
+            }
+            if (document.readyState === "complete") {
+                cartItems();
+            } else {
+                global.addEventListener("load", cartItems, false);
+            }
         }
 
-        function dbUpgrade(e) {
-            var db = e.target.result;
-            var objectStore;
-
-            db.onerror = dbError;
-            objectStore = db.createObjectStore("cart");
-            objectStore.createIndex("stripeKey", "stripeKey", { unique: false });
-            objectStore.createIndex("paypalKey", "paypalKey", { unique: false });
-            objectStore.createIndex("currency", "currency", { unique: false });
-            objectStore.createIndex("tax", "tax", { unique: false });
-            objectStore.createIndex("discountflat", "discountflat", { unique: false });
-            objectStore.createIndex("items", "items", { unique: false });
+        function dbUpgrade(ignore, db) {
+            db.create("cart", null, {
+                "stripeKey": ["stripeKey", { unique: false }],
+                "paypalKey": ["paypalKey", { unique: false }],
+                "currency": ["currency", { unique: false }],
+                "tax": ["tax", { unique: false }],
+                "discountflat": ["discountflat", { unique: false }],
+                "items": ["items", { unique: false }],
+            });
         }
 
         function dbUpdate() {
-            var db = dbrequest && dbrequest.result;
             var data = {
                 stripeKey: cart.stripeKey,
                 paypalKey: cart.paypalKey,
@@ -2571,8 +2551,8 @@
             stripal.each(function (item) {
                 data.items[item.id] = item.object();
             });
-            if (db) {
-                db.transaction(["cart"], "readwrite").objectStore("cart").put(data, "default");
+            if (dbrequest) {
+                dbrequest.insert("cart", data, "default");
             }
         }
 
@@ -2582,10 +2562,14 @@
             if (cart.loaded) {
                 return;
             }
-            dbrequest = indexedDB.open(dbname);
-            dbrequest.onerror = dbError;
-            dbrequest.onsuccess = dbSuccess;
-            dbrequest.onupgradeneeded = dbUpgrade;
+            gg.cdb.on("error", function (e) {
+                console.log(e.target.errorCode);
+            });
+            gg.cdb.on("open", function (ignore, req) {
+                dbrequest = req;
+                dbrequest.select("cart", "default").onsuccess = dbSuccess;
+            });
+            gg.cdb.open(dbname, 1, dbUpgrade);
         };
     }());
 
