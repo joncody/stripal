@@ -10,24 +10,24 @@ A simple, elegant shopping cart supporting both Stripe and Paypal checkouts.  Cu
   - [get](#getid---item)
   - [length](#length---number)
   - [quantity](#quantity---number)
-  - [find]()
-  - [items]()
-  - [save]()
-  - [loaded]()
-  - [empty]()
-  - [stripeKey]()
-  - [paypalKey]()
-  - [currency]()
-  - [tax]()
-  - [discountflat]()
-  - [subtotal]()
-  - [newItem]()
-  - [load]()
-  - [checkout]()
+  - [find](#findproperties---array)
+  - [items](#items---object)
+  - [save](#save)
+  - [loaded](#loaded---boolean)
+  - [empty](#empty)
+  - [stripeKey](#stripekeykey---string)
+  - [paypalKey](#paypalkeykey---string)
+  - [currency](#currencycurrency---string)
+  - [tax](#taxtaxt---string)
+  - [discountflat](#discountflatdiscountflat---number)
+  - [subtotal](#subtotal---number)
+  - [newItem](#newitemopts---item)
+  - [load](#loaddbname)
+  - [checkout](#checkouttype-opts---gobject)
 - [Item](#item)
-  - [stripal_item]()
-  - [id]()
-  - [save]()
+  - [stripal_item](#properties)
+  - [id](#properties)
+  - [save](#save-1)
   - [quiet]()
   - [name]()
   - [currency]()
@@ -205,7 +205,7 @@ stripe-checkout-end | Token, Args | Fired when a Stripe checkout process ends.
 
 ### Item
 > A stripal item.
-###### Properties
+#### Properties
 Name | Type | Description
 ---- | ---- | -----------
 stripal_item | Boolean | Indicator of a stripal item.
@@ -217,7 +217,7 @@ id | Number | The unique identifier.
 
 <br/>
 
-##### quiet(quiet)
+##### quiet(quiet) _-> {Boolean}_
 > Gets or sets the option to emit events.
 ###### Parameters
 Name | Type | Description
@@ -225,7 +225,7 @@ Name | Type | Description
 quiet | Boolean (optional) | Determines event emission.
 <br/>
 
-##### name(name)
+##### name(name) _-> {String}_
 > Gets or sets the item name.
 ###### Parameters
 Name | Type | Description
@@ -233,7 +233,7 @@ Name | Type | Description
 name | String (optional) | The item name.
 <br/>
 
-##### currency(currency)
+##### currency(currency) _-> {Number}_
 > Gets or sets the currency for the item.
 ###### Parameters
 Name | Type | Description
