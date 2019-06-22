@@ -28,9 +28,9 @@ A simple, elegant shopping cart supporting both Stripe and Paypal checkouts.  Cu
   - [stripal_item](#properties)
   - [id](#properties)
   - [save](#save-1)
-  - [quiet]()
-  - [name]()
-  - [currency]()
+  - [quiet](#quietquiet---boolean)
+  - [name](#namename---string)
+  - [currency](#currencycurrency---number)
   - [price]()
   - [minimum]()
   - [quantity]()
@@ -241,7 +241,7 @@ Name | Type | Description
 currency | String (optional, default: "USD") | The currency code.
 <br/>
 
-##### price(price)
+##### price(price) _-> {Number}_
 > Gets or sets the price of the item.
 ###### Parameters
 Name | Type | Description
@@ -249,7 +249,7 @@ Name | Type | Description
 price | Number (optional) | The price of the item.
 <br/>
 
-##### minimum(minimum)
+##### minimum(minimum) _-> {Number}_
 > Gets or sets the minimum quantity which must be purchased.
 ###### Parameters
 Name | Type | Description
@@ -257,7 +257,7 @@ Name | Type | Description
 minimum | Number (optional, default: 1) | The minimum quantity.
 <br/>
 
-##### quantity(quantity)
+##### quantity(quantity) _-> {Number}_
 > Gets or sets the quantity.
 ###### Parameters
 Name | Type | Description
@@ -265,7 +265,7 @@ Name | Type | Description
 quantity | Number (optional, default: 1) | The quantity.
 <br/>
 
-##### step(step)
+##### step(step) _-> {Number}_
 > Gets or sets the step when calling increment() and decrement()
 ###### Parameters
 Name | Type | Description
@@ -273,7 +273,7 @@ Name | Type | Description
 step | Number (optional, default: 1) | The quantity to increase and decrease by.
 <br/>
 
-##### add(add)
+##### add(add) _-> {Number}_
 > Gets or sets the additional amount to add to the price of each item considering the quantity.
 ###### Parameters
 Name | Type | Description
@@ -281,7 +281,7 @@ Name | Type | Description
 add | Number (optional) | The amount to add.
 <br/>
 
-##### addflat(addflat)
+##### addflat(addflat) _-> {Number}_
 > Gets or sets a flat, additional amount to add to the price of each item not considering quantity.
 ###### Parameters
 Name | Type | Description
@@ -289,7 +289,7 @@ Name | Type | Description
 addflat | Number (optional) | The flat amount to add.
 <br/>
 
-##### discount(discount)
+##### discount(discount) _-> {Number}_
 > Gets or sets the additional amount to subtract from the price of each item considering the quantity.
 ###### Parameters
 Name | Type | Description
@@ -297,7 +297,7 @@ Name | Type | Description
 discount | Number (optional) | The amount to subtract.
 <br/>
 
-##### discountflat(discountflat)
+##### discountflat(discountflat) _-> {Number}_
 > Gets or sets a flat amount to subtract from the price of each item not considering quantity.
 ###### Parameters
 Name | Type | Description
@@ -305,7 +305,7 @@ Name | Type | Description
 discountflat | Number (optional) | The flat amount to subtract.
 <br/>
 
-##### increment(inc)
+##### increment(inc) _-> {Number}_
 > Increases the quantity by the passed value or by the step and returns the quantity.
 ###### Parameters
 Name | Type | Description
@@ -313,7 +313,7 @@ Name | Type | Description
 inc | Number (optional) | The amount to increase the quantity by.
 <br/>
 
-##### decrement(dec)
+##### decrement(dec) _-> {Number}_
 > Decreases the quantity by the passed value or by the step and returns the quantity.
 ###### Parameters
 Name | Type | Description
@@ -321,17 +321,17 @@ Name | Type | Description
 dec | Number (optional) | The amount to decrease the quantity by.
 <br/>
 
-##### total
+##### total() _-> {Number}_
 > Gets the total price.
 
 <br/>
 
-##### cart
+##### cart()
 > Adds the item to the cart.
 
 <br/>
 
-##### remove
+##### remove()
 > Removes the item from the cart.
 
 <br/>
@@ -345,7 +345,7 @@ key | String | The attribute name.
 value | Any | The value.
 <br/>
 
-##### get(key)
+##### get(key) _-> {Any}_
 > Gets the value of an attribute on the item.
 ###### Parameters
 Name | Type | Description
@@ -361,7 +361,7 @@ Name | Type | Description
 key | String | The attribute name.
 <br/>
 
-##### object(added)
+##### object(added) _-> {Object}_
 > Essentially "unwraps" the item and returns its current state as an object.
 ###### Parameters
 Name | Type | Description
