@@ -1022,7 +1022,10 @@
             }
             if (isNode(node)) {
                 nodeid = global.parseInt(node.getAttribute("data-gg-id"), 10);
-                clone = node.cloneNode(true);
+                clone = node.cloneNode();
+                each(node.childNodes, function (child) {
+                    clone.appendChild(cloneNodeDeeper(child));
+                });
             }
             if (!isNumber(nodeid) || !listeners.hasOwnProperty(nodeid)) {
                 return clone;
