@@ -1,203 +1,180 @@
-# 🛒 Stripal
+Here is a complete README for **stripal.js**, designed to match the style of your previous documentation.
 
-A simple, elegant shopping cart library supporting both **Stripe** and **PayPal** checkouts. Stripal is lightweight, event-driven, and designed for extensibility, with persistence via **IndexedDB**.
+***
 
----
+# `stripal.js` – E-Commerce Cart Manager
 
-## 🌟 Features
+A client-side shopping cart with built-in Stripe and PayPal integration.
 
-- Add/remove/update cart items
-- Stripe & PayPal checkout integrations
-- Persistent cart storage via IndexedDB
-- Support for taxes, discounts, currency, and quantity rules
-- Emits useful lifecycle events (`load`, `item-update`, `checkout-end`, etc.)
-- Fully documented API and item model
-
-> **Note:** Currently supports **USD** as the default currency.
+**stripal.js** manages cart state (items, taxes, discounts, currencies), persists data using IndexedDB (via `gg.cdb`), and provides drop-in checkout buttons for major payment providers. It integrates seamlessly with the `gg` ecosystem.
 
 ---
 
-## 📦 Getting Started
+## ✅ Features
 
-### Include in Your Project
-
-Include Stripal as a module:
-
-```html
-<script type="module" src="stripal.js"></script>
-```
-
-Make sure to also include the required utility library (`gg.js`) used internally for DOM, events, and IndexedDB handling.
+- 🛒 **Full Cart Management:** Add/remove items, update quantities, calculate subtotals/totals.
+- 💾 **Persistence:** Automatically saves cart state to IndexedDB.
+- 🔍 **Smart Search:** Find items using operators (`>`, `<`, `!=`) and regex.
+- 💳 **Payment Ready:** Built-in wrappers for **Stripe Checkout** (v2/legacy) and **PayPal Checkout**.
+- 🧮 **Tax & Discounts:** Handles percentage-based tax and flat-rate discounts.
+- ⚡ **Event Driven:** Emits events on updates, load, and checkout flow.
+- 📦 **Zero dependencies** (other than the included `gg` library).
 
 ---
 
-## 🔧 Basic Usage
+## 📦 Installation
+
+Copy `stripal.js` (and `gg.js`) into your project.
+
+Import as a module:
 
 ```js
 import stripal from './stripal.js';
+```
 
-stripal.load('my-cart'); // Load saved cart from IndexedDB
+---
 
-const item = stripal.newItem({
-  name: "T-Shirt",
-  price: 2000, // in cents
-  quantity: 1
+## 🧠 Quick Examples
+
+### 1. Setup & Persistence
+
+```js
+import stripal from "./stripal.js";
+
+// Load saved cart from DB named "MyShopDB"
+stripal.load("MyShopDB");
+
+stripal.on("load", () => {
+    console.log("Cart loaded!", stripal.length(), "items.");
 });
 
-item.cart(); // Add item to the cart
-
-stripal.save(); // Persist the cart
+// Set global store settings
+stripal.currency("USD");
+stripal.tax(8.25); // 8.25%
 ```
 
----
-
-## 🧾 Checkout Integration
-
-### Stripe
+### 2. Managing Items
 
 ```js
-document.body.appendChild(
-  stripal.checkout("stripe", {
+// Create/Add an item
+const tshirt = stripal.newItem({
+    name: "Cool T-Shirt",
+    price: 2500, // stored in cents (integers)
+    quantity: 1,
+    id: "item_123" // optional custom ID
+});
+
+// Add to cart
+tshirt.cart();
+
+// Update item
+tshirt.increment(); // Quantity -> 2
+tshirt.name("Super Cool T-Shirt");
+
+// Calculate totals
+console.log(stripal.subtotal()); // 5000 (50.00)
+console.log(stripal.total());    // 5413 (54.13 with tax)
+```
+
+### 3. Checkout
+
+```js
+// Render a Stripe button
+const btn = stripal.checkout("stripe", {
+    key: "pk_test_...",
     name: "My Store",
-    description: "Order Summary",
-    email: "user@example.com"
-  })
-);
+    image: "/logo.png"
+});
+
+// Add to DOM
+gg(document.body).append(btn);
+
+// Listen for success
+stripal.on("stripe-checkout-end", (token, args) => {
+    // Send token to your server to charge the customer
+    console.log("Charged!", token.id);
+});
 ```
 
-### PayPal
+---
+
+## 📚 API Reference
+
+### 🟢 Core Cart Methods
+
+| Function | Description |
+|----------|-------------|
+| `load(dbName)` | Initializes the DB connection and loads saved cart data. |
+| `newItem(options)` | Creates a new item object (see Item API below). |
+| `get(id)` | Retrieves an item by ID. |
+| `items()` | Returns the raw object of all items. |
+| `length()` | Returns number of unique items in cart. |
+| `quantity()` | Returns total count of all items (sum of quantities). |
+| `empty()` | Removes all items from the cart. |
+
+### 🔍 Search
+
+| Function | Description |
+|----------|-------------|
+| `find(criteria)` | Returns an array of items matching properties. Supports operators: `"<"`, `">"`, `"<="`, `">="`, `"!="`, and Regex. |
 
 ```js
-document.body.appendChild(
-  stripal.checkout("paypal", {
-    client: {
-      production: "YOUR_PAYPAL_CLIENT_ID"
-    }
-  })
-);
+// Find items cheaper than $20
+const cheapItems = stripal.find({ price: "< 2000" });
 ```
 
----
+### 🧮 Calculations & Settings
 
-## 🛠️ API Reference
+*All monetary values are integers (cents).*
 
-### stripal (Global)
-
-| Method | Description |
-| ------ | ----------- |
-| `each(fn)` | Iterate through all items. |
-| `get(id)` | Get an item by ID. |
-| `length()` | Get number of items. |
-| `quantity()` | Get total item quantity. |
-| `find(props)` | Filter items by rules. |
-| `items()` | Get items as object map. |
-| `save()` | Persist cart state. |
-| `loaded()` | Return if cart is loaded. |
-| `empty()` | Remove all items from cart. |
-| `stripeKey(key)` | Get/set Stripe API key. |
-| `paypalKey(key)` | Get/set PayPal API key. |
-| `currency(currency)` | Get/set cart currency. |
-| `tax(tax)` | Get/set tax rate (default: 7.75%). |
-| `discountflat(amount)` | Get/set global flat discount. |
-| `subtotal()` | Get total before tax/discount. |
-| `total()` | Get total after tax/discount. |
-| `newItem(opts)` | Create a new item. |
-| `load(dbname)` | Load cart from IndexedDB. |
-| `checkout(type, opts)` | Initiate checkout (`stripe` or `paypal`). |
+| Function | Description |
+|----------|-------------|
+| `subtotal()` | Sum of item totals minus global discount. |
+| `total()` | Subtotal plus tax. |
+| `currency(code)` | Get/Set currency code (e.g., "USD"). |
+| `tax(percent)` | Get/Set tax percentage (e.g., 7.75). |
+| `discountflat(amt)` | Get/Set global flat discount amount. |
+| `stripeKey(key)` | Get/Set Stripe Public Key. |
+| `paypalKey(key)` | Get/Set PayPal Client ID. |
 
 ---
 
-## 🧱 Item API
+### 📦 Item API
 
-Each cart item is an object with the following methods:
+Created via `stripal.newItem({ ... })`.
 
-| Method | Description |
-| ------ | ----------- |
-| `id()` | Unique identifier |
-| `name(name)` | Get/set name |
-| `price(price)` | Get/set price in cents |
-| `currency(currency)` | Get/set currency (default: USD) |
-| `quantity(quantity)` | Get/set quantity |
-| `minimum(min)` | Set minimum allowed quantity |
-| `step(step)` | Set quantity increment/decrement |
-| `add(add)` | Additional per-unit price |
-| `addflat(flat)` | Additional flat price |
-| `discount(discount)` | Per-unit discount |
-| `discountflat(flat)` | Flat discount |
-| `increment([n])` | Increase quantity |
-| `decrement([n])` | Decrease quantity |
-| `total()` | Get total price for item |
-| `cart()` | Add item to cart |
-| `remove()` | Remove item from cart |
-| `set(key, value)` | Set custom data |
-| `get(key)` | Get custom data |
-| `del(key)` | Delete custom data |
-| `object([added])` | Export item as object |
-| `save()` | Save item changes |
-| `quiet(quiet)` | Enable/disable event emissions |
+| Property/Method | Description |
+|-----------------|-------------|
+| `cart()` | Adds the item to the active cart. |
+| `remove()` | Removes the item from the active cart. |
+| `save()` | Forces a save to DB. |
+| `total()` | Calculates total price for this item line (qty * price + extras). |
+| `increment([n])` | Increases quantity (default 1). |
+| `decrement([n])` | Decreases quantity (default 1). |
+| `get(key) / set(key, val)` | Get or set arbitrary custom data (e.g., color, size). |
+
+**Reactive Properties:**
+Calling these as functions updates the value and saves.
+`name()`, `price()`, `quantity()`, `minimum()`, `step()`, `add()` (markup), `discount()` (markdown).
 
 ---
 
-## 📡 Events
+### 💳 Checkout API
 
-### Global Events
+| Function | Description |
+|----------|-------------|
+| `checkout(provider, options)` | Returns a DOM element (button) that triggers the payment flow. |
 
-| Name | Parameters | Description |
-|------|------------|-------------|
-| `load` | — | Fired when cart is loaded from DB |
-| `item-cart` | `Item` | Fired when item is added |
-| `item-remove` | `Item` | Fired when item is removed |
-| `item-update` | `Item, key, [value]` | Fired on item property change |
-| `paypal-checkout-start` | `PaymentData` | Checkout initiated |
-| `paypal-checkout-end` | `PaymentData` | Payment authorized |
-| `stripe-checkout-start` | — | Checkout initiated |
-| `stripe-checkout-end` | `Token, Args` | Payment completed |
+**Providers:**
+*   `"stripe"`: Uses legacy Stripe Checkout (iframe).
+*   `"paypal"`: Uses PayPal Buttons API.
 
-### Item Events
-
-| Name | Parameters | Description |
-|------|------------|-------------|
-| `cart` | `Item` | Fired when item added |
-| `remove` | `Item` | Fired when item removed |
-| `update` | `Item, key, [value]` | Fired on update |
+**Events:**
+*   `stripe-checkout-start` / `stripe-checkout-end`
+*   `paypal-checkout-start` / `paypal-checkout-end`
 
 ---
 
-## 💾 Persistence
-
-Stripal stores all cart data using IndexedDB via `gg.cdb`. Cart configuration (Stripe/PayPal keys, currency, tax, etc.) and all item data are saved under a single object store.
-
-Use `stripal.load(dbname)` to load cart data and `stripal.save()` to persist changes.
-
----
-
-## 🔑 Configuration Options
-
-```js
-stripal.currency("EUR");
-stripal.tax(8.5);
-stripal.discountflat(500);
-stripal.stripeKey("pk_live_xxx");
-stripal.paypalKey("live_xxx");
-```
-
----
-
-## 🧪 Example
-
-```js
-stripal.load("demo");
-
-const item = stripal.newItem({ name: "Coffee", price: 499 });
-item.cart();
-
-console.log("Subtotal:", stripal.subtotal());
-console.log("Total:", stripal.total());
-```
-
----
-
-## 📜 License
+## 📄 License
 
 See the [LICENSE](./LICENSE) file for details.
-

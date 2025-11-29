@@ -702,10 +702,10 @@ stripal.checkout = (function () {
                 if (cart.discountflat > 0) {
                     pitems.push({
                         name: "Discount Flat",
-                        description: o.description || o.paypal_description || "",
+                        description: "Cart Discount",
                         quantity: 1,
                         price: gg.util.toFloat(-1 * cart.discountflat / 100, 2),
-                        currency: o.currency
+                        currency: cart.currency
                     });
                 }
                 stripal.emit("paypal-checkout-start", p);
