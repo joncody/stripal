@@ -2,7 +2,7 @@
 
 import gg from "./include/gg.js";
 
-const global = globalThis || window || this;
+const global = typeof globalThis !== "undefined" ? globalThis : (typeof window !== "undefined" ? window : this);
 const stripal = gg.emitter();
 const cart = {
     loaded: false,
